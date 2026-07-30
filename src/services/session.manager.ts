@@ -41,6 +41,7 @@ export class SessionManager {
     private allowedGroups: Contact[] = [];
     private ignoredNumbers: Contact[] = [];
     private updateList: Contact[] = [];
+    private autoConnect = false;
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -119,6 +120,7 @@ export class SessionManager {
             this.openaiKey = config.openaiKey || '';
             this.visionModel = config.visionModel || 'gpt-4o';
             this.operatorJid = config.operatorJid || '';
+            this.autoConnect = Boolean(config.autoConnect);
 
             if (recovered) {
                 await this.saveConfig();
@@ -195,7 +197,8 @@ export class SessionManager {
                 brandVisibility: this.brandVisibility,
                 openaiKey: this.openaiKey,
                 visionModel: this.visionModel,
-                operatorJid: this.operatorJid
+                operatorJid: this.operatorJid,
+                autoConnect: this.autoConnect
             };
             await mkdir(this.storagePaths.root, { recursive: true });
             const serialized = JSON.stringify(config, null, 2);
@@ -412,6 +415,15 @@ export class SessionManager {
     }
 
     // --- Update list methods ---
+
+    getAutoConnect(): boolean {
+        return this.autoConnect;
+    }
+
+    async setAutoConnect(value: boolean) {
+        this.autoConnect = value;
+        await this.saveConfig();
+    }
 
     getUpdateList(): Contact[] {
         return this.updateList;
