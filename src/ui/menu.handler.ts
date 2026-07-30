@@ -491,6 +491,7 @@ export class MenuHandler {
     private async manageSettings(ctx: ExtensionCommandContext) {
         const brandVisibility = this.sessionManager.getBrandVisibility();
         const autoConnect = this.sessionManager.getAutoConnect();
+        const assistantName = this.sessionManager.getAssistantName();
         const title = t('menu.settings.title');
         const brandVisibilityLabel = brandVisibility
             ? t('menu.settings.brandVisibilityYes')
@@ -498,8 +499,9 @@ export class MenuHandler {
         const autoConnectLabel = autoConnect
             ? t('menu.settings.autoConnectYes')
             : t('menu.settings.autoConnectNo');
+        const assistantNameLabel = `${t('menu.settings.assistantName')}: ${assistantName}`;
         const backLabel = t('menu.settings.back');
-        const options = [brandVisibilityLabel, autoConnectLabel, backLabel];
+        const options = [brandVisibilityLabel, autoConnectLabel, assistantNameLabel, backLabel];
 
         const choice = await ctx.ui.select(title, options);
 
@@ -515,6 +517,16 @@ export class MenuHandler {
             const newValue = !autoConnect;
             await this.sessionManager.setAutoConnect(newValue);
             ctx.ui.notify(t('menu.settings.autoConnectSet', { value: newValue ? 'Yes' : 'No' }), 'info');
+            await this.manageSettings(ctx);
+            return;
+        }
+
+        if (choice === assistantNameLabel) {
+            const newName = await ctx.ui.input(t('menu.settings.assistantNamePrompt'));
+            if (newName && newName.trim()) {
+                await this.sessionManager.setAssistantName(newName.trim());
+                ctx.ui.notify(t('menu.settings.assistantNameSet', { value: newName.trim() }), 'info');
+            }
             await this.manageSettings(ctx);
             return;
         }
@@ -777,7 +789,8 @@ export class MenuHandler {
                 senderName,
                 text: selectedMessage.text,
                 direction: selectedMessage.direction,
-                timestamp: selectedMessage.timestamp
+                timestamp: selectedMessage.timestamp,
+                assistantName: this.sessionManager.getAssistantName()
             });
 
             if (detailAction === 'reply') {
@@ -905,7 +918,8 @@ export class MenuHandler {
     }
 
     private formatHistoryOption(timestamp: number, direction: string, text: string): string {
-        const marker = direction === 'outgoing' ? t('menu.recents.history.sent') : t('menu.recents.history.received');
+        const assistantName = this.sessionManager.getAssistantName();
+        const marker = direction === 'outgoing' ? assistantName : t('menu.recents.history.received');
         const displayText = this.truncate(text, 60) || t('menu.recents.history.noText');
         return `${this.formatDateTimeWithSeconds(timestamp)} • ${marker} • ${displayText}`;
     }

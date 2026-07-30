@@ -4,6 +4,7 @@ import { t } from '../i18n.js';
 
 export interface MessageDetailViewProps extends SelectedMessageContext {
     title: string;
+    assistantName?: string;
     onClose: () => void;
     onReply?: () => void | Promise<void>;
 }
@@ -89,7 +90,10 @@ export class MessageDetailView {
     }
 
     private formatDirection(): string {
-        return this.props.direction === 'outgoing' ? t('message.detail.direction.sent') : t('message.detail.direction.received');
+        if (this.props.direction === 'outgoing') {
+            return this.props.assistantName || t('message.detail.direction.sent');
+        }
+        return t('message.detail.direction.received');
     }
 
     private formatTimestamp(timestamp: number): string {

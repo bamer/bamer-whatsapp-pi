@@ -42,6 +42,7 @@ export class SessionManager {
     private ignoredNumbers: Contact[] = [];
     private updateList: Contact[] = [];
     private autoConnect = false;
+    private assistantName = 'Agent Pi';
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -121,6 +122,7 @@ export class SessionManager {
             this.visionModel = config.visionModel || 'gpt-4o';
             this.operatorJid = config.operatorJid || '';
             this.autoConnect = Boolean(config.autoConnect);
+            this.assistantName = config.assistantName || 'Agent Pi';
 
             if (recovered) {
                 await this.saveConfig();
@@ -198,7 +200,8 @@ export class SessionManager {
                 openaiKey: this.openaiKey,
                 visionModel: this.visionModel,
                 operatorJid: this.operatorJid,
-                autoConnect: this.autoConnect
+                autoConnect: this.autoConnect,
+                assistantName: this.assistantName
             };
             await mkdir(this.storagePaths.root, { recursive: true });
             const serialized = JSON.stringify(config, null, 2);
@@ -422,6 +425,15 @@ export class SessionManager {
 
     async setAutoConnect(value: boolean) {
         this.autoConnect = value;
+        await this.saveConfig();
+    }
+
+    getAssistantName(): string {
+        return this.assistantName;
+    }
+
+    async setAssistantName(name: string) {
+        this.assistantName = name || 'Agent Pi';
         await this.saveConfig();
     }
 
