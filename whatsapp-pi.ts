@@ -143,7 +143,7 @@ export default function (pi: ExtensionAPI) {
         const savedStateEntry = [...ctx.sessionManager.getEntries()]
             .reverse()
             .find(entry => entry.type === "custom" && entry.customType === "whatsapp-state");
-        const isWhatsappPiOn = pi.getFlag("whatsapp-pi-online") === true;
+        const isWhatsappPiOn = pi.getFlag('whatsapp-pi-online') === true || sessionManager.getAutoConnect();
         const registered = await sessionManager.isRegistered();
 
         if (savedStateEntry) {

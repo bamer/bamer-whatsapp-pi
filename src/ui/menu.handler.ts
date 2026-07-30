@@ -1,12 +1,12 @@
-import { WhatsAppService } from '../services/whatsapp.service.js';
-import { SessionManager, type Contact } from '../services/session.manager.js';
+import type { ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
+import * as qrcode from 'qrcode-terminal';
+import { t } from '../i18n.js';
 import { validatePhoneNumber, type RecentConversationMessage, type RecentConversationSummary } from '../models/whatsapp.types.js';
 import { RecentsService } from '../services/recents.service.js';
+import { SessionManager, type Contact } from '../services/session.manager.js';
+import { WhatsAppService } from '../services/whatsapp.service.js';
 import { showMessageDetailView } from './message-detail.view.js';
 import { showMessageReplyView } from './message-reply.view.js';
-import * as qrcode from 'qrcode-terminal';
-import type { ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
-import { t } from '../i18n.js';
 
 interface HistoryOptionEntry {
     label: string;
@@ -490,12 +490,16 @@ export class MenuHandler {
 
     private async manageSettings(ctx: ExtensionCommandContext) {
         const brandVisibility = this.sessionManager.getBrandVisibility();
+        const autoConnect = this.sessionManager.getAutoConnect();
         const title = t('menu.settings.title');
         const brandVisibilityLabel = brandVisibility
             ? t('menu.settings.brandVisibilityYes')
             : t('menu.settings.brandVisibilityNo');
+        const autoConnectLabel = autoConnect
+            ? t('menu.settings.autoConnectYes')
+            : t('menu.settings.autoConnectNo');
         const backLabel = t('menu.settings.back');
-        const options = [brandVisibilityLabel, backLabel];
+        const options = [brandVisibilityLabel, autoConnectLabel, backLabel];
 
         const choice = await ctx.ui.select(title, options);
 
@@ -503,6 +507,14 @@ export class MenuHandler {
             const newValue = !brandVisibility;
             await this.sessionManager.setBrandVisibility(newValue);
             ctx.ui.notify(t('menu.settings.brandVisibilitySet', { value: newValue ? 'Yes' : 'No' }), 'info');
+            await this.manageSettings(ctx);
+            return;
+        }
+
+        if (choice === autoConnectLabel) {
+            const newValue = !autoConnect;
+            await this.sessionManager.setAutoConnect(newValue);
+            ctx.ui.notify(t('menu.settings.autoConnectSet', { value: newValue ? 'Yes' : 'No' }), 'info');
             await this.manageSettings(ctx);
             return;
         }
