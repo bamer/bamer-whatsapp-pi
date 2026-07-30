@@ -6,12 +6,12 @@
   "main": "whatsapp-pi.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RaphaCastelloes/whatsapp-pi.git"
+    "url": "git+https://github.com/bamer/bamer-whatsapp-pi.git"
   },
   "bugs": {
-    "url": "https://github.com/RaphaCastelloes/whatsapp-pi/issues"
+    "url": "https://github.com/bamer/bamer-whatsapp-pi/issues"
   },
-  "homepage": "https://github.com/RaphaCastelloes/whatsapp-pi#readme",
+  "homepage": "https://github.com/bamer/bamer-whatsapp-pi#readme",
   "files": [
     "whatsapp-pi.ts",
     "src"
@@ -34,14 +34,14 @@
   "dependencies": {
     "@llamaindex/liteparse": "^2.10.1",
     "@sinclair/typebox": "^0.34.52",
-    "baileys": "^6.17.16",
+    "baileys": "^6.7.24",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
     "whisper-cpp-node": "^0.2.12"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@earendil-works/pi-coding-agent": "latest",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.2",
     "@types/qrcode-terminal": "^0.12.2",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
@@ -50,7 +50,7 @@
     "eslint": "^10.8.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^4.1.10"
   },
   "pi": {
