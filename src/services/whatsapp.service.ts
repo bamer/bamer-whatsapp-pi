@@ -542,7 +542,9 @@ export class WhatsAppService {
     }
 
     private isPiGeneratedMessage(text: string): boolean {
-        return text.endsWith('π');
+        const signature = this.sessionManager.getAgentSignature();
+        if (!signature) return false;
+        return text.endsWith(signature);
     }
 
     private getIncomingTimestamp(timestamp: number | string | undefined): number {

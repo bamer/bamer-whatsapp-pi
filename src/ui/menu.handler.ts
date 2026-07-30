@@ -898,7 +898,8 @@ export class MenuHandler {
 				continue;
 			}
 
-			const messageText = appendPiSuffix ? `${inputText} π` : inputText;
+			const signature = appendPiSuffix ? this.sessionManager.getAgentSignature() : '';
+			const messageText = signature ? `${inputText} ${signature}` : inputText;
 			const result = await this.whatsappService.sendMenuMessage(
 				this.toJid(senderNumber),
 				messageText,

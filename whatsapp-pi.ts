@@ -48,7 +48,7 @@ export default function (pi: ExtensionAPI) {
 	const whatsappService = new WhatsAppService(sessionManager);
 	const recentsService = new RecentsService(sessionManager);
 	const logger = new WhatsAppPiLogger(false);
-	const audioService = new AudioService(logger);
+	const audioService = new AudioService();
 	const incomingMediaService = new IncomingMediaService(audioService, logger);
 	const menuHandler = new MenuHandler(
 		whatsappService,
