@@ -43,6 +43,7 @@ export class SessionManager {
     private updateList: Contact[] = [];
     private autoConnect = false;
     private assistantName = 'Agent Pi';
+    private agentSignature = 'π';
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -123,6 +124,7 @@ export class SessionManager {
             this.operatorJid = config.operatorJid || '';
             this.autoConnect = Boolean(config.autoConnect);
             this.assistantName = config.assistantName || 'Agent Pi';
+            this.agentSignature = config.agentSignature !== undefined ? config.agentSignature : 'π';
 
             if (recovered) {
                 await this.saveConfig();
@@ -201,7 +203,8 @@ export class SessionManager {
                 visionModel: this.visionModel,
                 operatorJid: this.operatorJid,
                 autoConnect: this.autoConnect,
-                assistantName: this.assistantName
+                assistantName: this.assistantName,
+                agentSignature: this.agentSignature
             };
             await mkdir(this.storagePaths.root, { recursive: true });
             const serialized = JSON.stringify(config, null, 2);
@@ -434,6 +437,15 @@ export class SessionManager {
 
     async setAssistantName(name: string) {
         this.assistantName = name || 'Agent Pi';
+        await this.saveConfig();
+    }
+
+    getAgentSignature(): string {
+        return this.agentSignature;
+    }
+
+    async setAgentSignature(signature: string) {
+        this.agentSignature = signature;
         await this.saveConfig();
     }
 
