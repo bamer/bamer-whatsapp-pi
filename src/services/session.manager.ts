@@ -1,13 +1,13 @@
 import { useMultiFileAuthState } from 'baileys';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
-import { readFile, writeFile, mkdir, rm, rename, readdir } from 'fs/promises';
-import { SessionStatus } from '../models/whatsapp.types.js';
 import { t } from '../i18n.js';
+import { SessionStatus } from '../models/whatsapp.types.js';
 import {
-    getDefaultLegacyStorageRoot,
-    getDefaultStorageRoot,
     createStoragePaths,
     ensureStorageDirectories as ensureStorageRoots,
+    getDefaultLegacyStorageRoot,
+    getDefaultStorageRoot,
     migrateLegacyStorage,
     type StoragePaths
 } from './storage-path.js';
@@ -40,6 +40,7 @@ export class SessionManager {
     private allowList: Contact[] = [];
     private allowedGroups: Contact[] = [];
     private ignoredNumbers: Contact[] = [];
+    private updateList: Contact[] = [];
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -111,6 +112,7 @@ export class SessionManager {
             this.allowList = loadedAllowList.filter(c => !SessionManager.isGroupJid(c.number));
             this.allowedGroups = this.mergeContacts(loadedAllowedGroups, migratedGroups);
             this.ignoredNumbers = (config.ignoredNumbers || []).map(cleanContact).filter(Boolean) as Contact[];
+            this.updateList = (config.updateList || []).map(cleanContact).filter(Boolean) as Contact[];
             this.status = config.status || 'logged-out';
             this.hasAuthState = Boolean(config.hasAuthState);
             this.brandVisibility = config.brandVisibility !== false;
@@ -187,6 +189,7 @@ export class SessionManager {
                 allowList: this.allowList,
                 allowedGroups: this.allowedGroups,
                 ignoredNumbers: this.ignoredNumbers,
+                updateList: this.updateList,
                 status: this.status,
                 hasAuthState: this.hasAuthState,
                 brandVisibility: this.brandVisibility,
@@ -406,6 +409,36 @@ export class SessionManager {
             this.ignoredNumbers.push({ number, name });
             await this.saveConfig();
         }
+    }
+
+    // --- Update list methods ---
+
+    getUpdateList(): Contact[] {
+        return this.updateList;
+    }
+
+    isAllowedUpdateTarget(jid: string): boolean {
+        const number = jid.split('@')[0];
+        return this.updateList.some(c => c.number === number || c.number === jid);
+    }
+
+    async addUpdateNumber(number: string, name?: string) {
+        const cleanNumber = typeof number === 'string' ? number : (number as any)?.number;
+        if (!cleanNumber || typeof cleanNumber !== 'string') return;
+
+        const existing = this.updateList.find(c => c.number === cleanNumber);
+        if (!existing) {
+            this.updateList.push({ number: cleanNumber, name });
+            await this.saveConfig();
+        } else if (name && !existing.name) {
+            existing.name = name;
+            await this.saveConfig();
+        }
+    }
+
+    async removeUpdateNumber(number: string) {
+        this.updateList = this.updateList.filter(c => c.number !== number);
+        await this.saveConfig();
     }
 
     private mergeContacts(primary: Contact[], secondary: Contact[]): Contact[] {

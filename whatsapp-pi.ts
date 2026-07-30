@@ -1,15 +1,15 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { initI18n, t } from './src/i18n.js';
+import { AudioService } from './src/services/audio.service.js';
+import { IncomingMediaService } from './src/services/incoming-media.service.js';
+import { extractIncomingText } from './src/services/incoming-message.resolver.js';
+import { ReactionSender } from './src/services/reaction.sender.js';
+import { RecentsService } from './src/services/recents.service.js';
 import { SessionManager } from './src/services/session.manager.js';
+import { WhatsAppPiLogger } from './src/services/whatsapp-pi.logger.js';
 import { WhatsAppService } from './src/services/whatsapp.service.js';
 import { MenuHandler } from './src/ui/menu.handler.js';
-import { RecentsService } from './src/services/recents.service.js';
-import { AudioService } from './src/services/audio.service.js';
-import { extractIncomingText } from './src/services/incoming-message.resolver.js';
-import { IncomingMediaService } from './src/services/incoming-media.service.js';
-import { WhatsAppPiLogger } from './src/services/whatsapp-pi.logger.js';
-import { ReactionSender } from './src/services/reaction.sender.js';
-import { initI18n, t } from './src/i18n.js';
 
 const shutdownState = globalThis as typeof globalThis & {
     __whatsappPiShutdown?: {
@@ -245,10 +245,16 @@ export default function (pi: ExtensionAPI) {
 
         const { text, imageBuffer, imageMimeType } = await incomingMediaService.process(resolved, pushName);
 
-        // Format message header with group context when applicable
-        const messageHeader = isGroup
-            ? `Message from ${pushName} (${participant}) in group ${remoteJid}:`
-            : `Message from ${pushName} (${sender}):`;
+        // Format message header: [Operator] prefix for owner messages, group context for groups
+        const operatorJid = whatsappService.getOperatorJid();
+        const operatorNumber = operatorJid ? operatorJid.split('@')[0] : '';
+        const isOperator = !isGroup && operatorNumber && sender === operatorNumber;
+
+        const messageHeader = isOperator
+            ? `[Operator] ${pushName} (${sender}):`
+            : isGroup
+                ? `Message from ${pushName} (${participant}) in group ${remoteJid}:`
+                : `Message from ${pushName} (${sender}):`;
 
         logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
 
@@ -313,6 +319,23 @@ export default function (pi: ExtensionAPI) {
                     details: undefined,
                     content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: t("tool.error.notConnected"), attempts: 0 }) }]
                 };
+            }
+            // Update list filter: if updateList is non-empty, only allow sends to listed JIDs
+            const operatorJid = whatsappService.getOperatorJid();
+            const isToOperator = operatorJid && resolvedJid === whatsappService.resolveOutboundRecipientJid(operatorJid);
+            if (!isToOperator) {
+                const updateList = sessionManager.getUpdateList();
+                if (updateList.length > 0 && !sessionManager.isAllowedUpdateTarget(resolvedJid)) {
+                    return {
+                        isError: true,
+                        details: undefined,
+                        content: [{ type: "text" as const, text: JSON.stringify({
+                            success: false,
+                            error: `Recipient ${resolvedJid} is not in the update list. Only approved numbers can receive messages.`,
+                            attempts: 0
+                        })}]
+                    };
+                }
             }
 
             const message = params.message ?? '';
