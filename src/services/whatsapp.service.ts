@@ -152,6 +152,10 @@ export class WhatsAppService {
         return status;
     }
 
+    public getBrandVisibility(): boolean {
+        return this.sessionManager.getBrandVisibility();
+    }
+
     public setIncomingMessageRecorder(callback: (message: IncomingMessage) => void | Promise<void>) {
         this.onIncomingMessageRecorded = callback;
     }
