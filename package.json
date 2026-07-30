@@ -24,7 +24,7 @@
     "baileys",
     "agent"
   ],
-  "author": "Rapha",
+  "author": "Bamer",
   "license": "MIT",
   "scripts": {
     "lint": "eslint whatsapp-pi.ts \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -32,26 +32,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@llamaindex/liteparse": "^1.5.3",
-    "@sinclair/typebox": "^0.27.10",
-    "baileys": "^6.7.21",
+    "@llamaindex/liteparse": "^2.10.1",
+    "@sinclair/typebox": "^0.34.52",
+    "baileys": "^6.17.16",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
     "whisper-cpp-node": "^0.2.12"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@mariozechner/pi-coding-agent": "latest",
-    "@types/node": "^20.11.0",
+    "@eslint/js": "^10.0.1",
+    "@earendil-works/pi-coding-agent": "latest",
+    "@types/node": "^26.1.2",
     "@types/qrcode-terminal": "^0.12.2",
-    "@typescript-eslint/eslint-plugin": "^8.58.1",
-    "@typescript-eslint/parser": "^8.58.1",
-    "@vitest/coverage-v8": "^1.6.1",
-    "eslint": "^9.39.4",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.0",
     "ts-node": "^10.9.2",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.0",
-    "vitest": "^1.2.0"
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "pi": {
     "extensions": [
