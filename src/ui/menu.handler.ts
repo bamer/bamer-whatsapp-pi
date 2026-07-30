@@ -36,6 +36,7 @@ export class MenuHandler {
         const recentsLabel = t('menu.root.recents');
         const allowedContactsLabel = t('menu.root.allowedNumbers');
         const allowedGroupsLabel = t('menu.root.allowedGroups');
+        const updateTargetsLabel = t('menu.root.updateTargets');
         const disconnectWhatsAppLabel = t('menu.root.disconnectWhatsApp');
         const connectWhatsAppLabel = t('menu.root.connectWhatsApp');
         const logoffDeleteSessionLabel = t('menu.root.logoffDeleteSession');
@@ -47,6 +48,7 @@ export class MenuHandler {
             options.push(recentsLabel);
             options.push(allowedContactsLabel);
             options.push(allowedGroupsLabel);
+            options.push(updateTargetsLabel);
             options.push(disconnectWhatsAppLabel);
         } else {
             options.push(connectWhatsAppLabel);
@@ -94,6 +96,9 @@ export class MenuHandler {
                 break;
             case allowedGroupsLabel:
                 await this.manageAllowedGroups(ctx);
+                break;
+            case updateTargetsLabel:
+                await this.manageUpdateList(ctx);
                 break;
             case recentsLabel:
                 await this.manageRecents(ctx);
@@ -376,6 +381,113 @@ export class MenuHandler {
         ctx.ui.notify(this.printedAllowedGroups.join('\n'), 'info');
     }
 
+
+    private async manageUpdateList(ctx: ExtensionCommandContext) {
+        const list = this.sortContactsAlphabetically(this.sessionManager.getUpdateList());
+        const title = t('menu.updateTargets.title');
+        const addNumberLabel = t('menu.updateTargets.addNumber');
+        const backLabel = t('menu.root.back');
+        const options = [...list.map(contact => this.formatUpdateTargetOption(contact)), addNumberLabel, backLabel];
+
+        const choice = await ctx.ui.select(title, options);
+
+        if (choice === addNumberLabel) {
+            const num = await ctx.ui.input(t('menu.updateTargets.enterNumber'));
+            if (num && validatePhoneNumber(num)) {
+                await this.sessionManager.addUpdateNumber(num);
+                ctx.ui.notify(t('menu.updateTargets.added', { number: num }), 'info');
+            } else {
+                ctx.ui.notify(t('menu.updateTargets.invalidNumber'), 'error');
+            }
+            await this.manageUpdateList(ctx);
+            return;
+        }
+
+        if (choice === backLabel || !choice) {
+            await this.handleCommand(ctx);
+            return;
+        }
+
+        const selectedContact = list.find(contact => this.formatUpdateTargetOption(contact) === choice);
+        if (!selectedContact) {
+            await this.manageUpdateList(ctx);
+            return;
+        }
+
+        await this.manageUpdateTarget(ctx, selectedContact);
+    }
+
+    private async manageUpdateTarget(ctx: ExtensionCommandContext, contact: Contact) {
+        const displayName = this.formatUpdateTargetOption(contact);
+        const title = t('menu.updateTargets.target.title', { displayName });
+        const printNumberLabel = t('menu.updateTargets.target.printNumber');
+        const removeAliasLabel = t('menu.updateTargets.target.removeAlias');
+        const addAliasLabel = t('menu.updateTargets.target.addAlias');
+        const removeNumberLabel = t('menu.updateTargets.target.removeNumber');
+        const backLabel = t('menu.updateTargets.target.back');
+        const options = [printNumberLabel];
+        if (contact.name) {
+            options.push(removeAliasLabel);
+        } else {
+            options.push(addAliasLabel);
+        }
+        options.push(removeNumberLabel, backLabel);
+
+        const choice = await ctx.ui.select(title, options);
+
+        if (choice === printNumberLabel) {
+            this.printUpdateTarget(ctx, contact.number);
+            await this.manageUpdateTarget(ctx, contact);
+            return;
+        }
+
+        if (choice === addAliasLabel) {
+            const alias = await ctx.ui.input(t('menu.updateTargets.enterAlias', { number: contact.number }));
+            const trimmedAlias = alias?.trim() || '';
+            if (!trimmedAlias) {
+                ctx.ui.notify(t('menu.updateTargets.pleaseEnterAlias'), 'error');
+                await this.manageUpdateTarget(ctx, contact);
+                return;
+            }
+            await this.sessionManager.addUpdateNumber(contact.number, trimmedAlias);
+            ctx.ui.notify(t('menu.updateTargets.aliasAdded', { number: contact.number }), 'info');
+            await this.manageUpdateTarget(ctx, { ...contact, name: trimmedAlias });
+            return;
+        }
+
+        if (choice === removeAliasLabel) {
+            await this.sessionManager.addUpdateNumber(contact.number);
+            ctx.ui.notify(t('menu.updateTargets.aliasRemoved', { number: contact.number }), 'info');
+            await this.manageUpdateTarget(ctx, { ...contact, name: undefined });
+            return;
+        }
+
+        if (choice === removeNumberLabel) {
+            const ok = await ctx.ui.confirm(t('menu.updateTargets.removeConfirmTitle'), t('menu.updateTargets.removeConfirmMessage', { displayName }));
+            if (ok) {
+                await this.sessionManager.removeUpdateNumber(contact.number);
+                ctx.ui.notify(t('menu.updateTargets.removed', { displayName }), 'info');
+            }
+            await this.manageUpdateList(ctx);
+            return;
+        }
+
+        await this.manageUpdateList(ctx);
+    }
+
+    private printUpdateTarget(ctx: ExtensionCommandContext, contactNumber: string) {
+        const output = '  • ' + contactNumber;
+        console.log([
+            t('menu.updateTargets.printTitle'),
+            output
+        ].join('\n'));
+        ctx.ui.notify(contactNumber, 'info');
+    }
+
+    private formatUpdateTargetOption(contact: Contact): string {
+        return contact.name ? `${contact.name} [${contact.number}]` : contact.number;
+    }
+
     private async manageSettings(ctx: ExtensionCommandContext) {
         const brandVisibility = this.sessionManager.getBrandVisibility();
         const title = t('menu.settings.title');
@@ -465,10 +577,16 @@ export class MenuHandler {
             : t('menu.recents.contact.allowNumber');
         const removeAliasLabel = t('menu.recents.contact.removeAlias');
         const backLabel = t('menu.recents.contact.back');
+        const addToUpdateListLabel = t('menu.recents.contact.addToUpdateList');
+        const isInUpdateList = !isGroup && this.sessionManager.isAllowedUpdateTarget(conversation.senderNumber);
         const options: string[] = [historyLabel];
 
         if (!allowedContact) {
             options.push(allowContactLabel);
+        }
+
+        if (!isGroup && !isInUpdateList) {
+            options.push(addToUpdateListLabel);
         }
 
         if (allowedContact?.name) {
@@ -488,6 +606,17 @@ export class MenuHandler {
             } else {
                 await this.sessionManager.addNumber(conversation.senderNumber, conversation.senderName);
                 ctx.ui.notify(t('menu.recents.addedToAllowList', { number: conversation.senderNumber }), 'info');
+            }
+            await this.manageRecentConversation(ctx, conversation);
+            return;
+        }
+
+        if (choice === addToUpdateListLabel) {
+            if (this.sessionManager.isAllowedUpdateTarget(conversation.senderNumber)) {
+                ctx.ui.notify(t('menu.recents.alreadyInUpdateList', { number: conversation.senderNumber }), 'info');
+            } else {
+                await this.sessionManager.addUpdateNumber(conversation.senderNumber, conversation.senderName);
+                ctx.ui.notify(t('menu.recents.addedToUpdateList', { number: conversation.senderNumber }), 'info');
             }
             await this.manageRecentConversation(ctx, conversation);
             return;
