@@ -2,9 +2,7 @@ import type {
     ExtensionAPI,
     ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import {
-    canStartPollingInExtensionContext,
-} from "@llblab/pi-telegram/lib/pi.js";
+
 import { Type } from "@sinclair/typebox";
 import { initI18n, t } from "./src/i18n.js";
 import { AudioService } from "./src/services/audio.service.js";
@@ -16,6 +14,34 @@ import { SessionManager } from "./src/services/session.manager.js";
 import { WhatsAppPiLogger } from "./src/services/whatsapp-pi.logger.js";
 import { WhatsAppService } from "./src/services/whatsapp.service.js";
 import { MenuHandler } from "./src/ui/menu.handler.js";
+
+// --- Extension context mode helpers (copied from @llblab/pi-telegram/lib/pi.ts) ---
+type PiRunMode = "tui" | "rpc" | "json" | "print";
+
+function isPiRunMode(value: unknown): value is PiRunMode {
+    return (
+        value === "tui" || value === "rpc" || value === "json" || value === "print"
+    );
+}
+
+function getExtensionContextMode(ctx: unknown): "tui" | "rpc" | "json" | "print" | undefined {
+    const mode =
+        typeof ctx === "object" && ctx !== null
+            ? (ctx as { mode?: unknown }).mode
+            : undefined;
+    return (["tui", "rpc", "json", "print"] as const).includes(mode as any) ? mode as any : undefined;
+}
+
+function isExtensionContextPassiveRunMode(ctx: unknown): boolean {
+    const mode = getExtensionContextMode(ctx);
+    return mode === "print" || mode === "json";
+}
+
+function canStartPollingInExtensionContext(ctx: unknown): boolean {
+    return !isExtensionContextPassiveRunMode(ctx);
+}
+
+
 
 const shutdownState = globalThis as typeof globalThis & {
 	__whatsappPiShutdown?: {
