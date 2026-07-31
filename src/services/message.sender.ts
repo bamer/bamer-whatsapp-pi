@@ -66,6 +66,7 @@ export class MessageSender {
                 
                 // 2. Get active socket
                 const socket = this.whatsappService.getSocket();
+                console.log(`[MessageSender] DEBUG: attempt ${attempts}, isGroup=${isGroup}, recipientJid=${request.recipientJid}`);
                 if (!socket) {
                     throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
                 }
@@ -84,7 +85,9 @@ export class MessageSender {
                 if (request.options?.useCachedGroupMetadata !== undefined) {
                     messageOptions.useCachedGroupMetadata = request.options.useCachedGroupMetadata;
                 }
+                console.log(`[MessageSender] DEBUG: sending to ${request.recipientJid}, text=${request.text.substring(0, 50)}...`);
                 const response = await socket.sendMessage(request.recipientJid, messageOptions);
+                console.log(`[MessageSender] DEBUG: response=${JSON.stringify(response?.key || {})}`);
 
                 fileLog(`SUCCESS sending to ${request.recipientJid} on attempt ${attempts}`);
                 return {
@@ -94,6 +97,7 @@ export class MessageSender {
                 };
             } catch (error: unknown) {
                 lastError = error;
+                console.error(`[MessageSender] ERROR attempt ${attempts}:`, error instanceof Error ? error.message : String(error));
                 console.error(t('message.sender.attemptFailed', {
                     attempt: attempts,
                     recipientJid: request.recipientJid,

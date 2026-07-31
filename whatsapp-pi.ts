@@ -420,6 +420,10 @@ export default function (pi: ExtensionAPI) {
 				whatsappService.getLastRemoteJid() ||
 				whatsappService.getOperatorJid();
 			if (!resolvedJid) {
+
+			console.log(`[send_wa_message] DEBUG: params.jid=${params.jid}, params.recipient_jid=${params.recipient_jid}`);
+			console.log(`[send_wa_message] DEBUG: lastRemoteJid=${whatsappService.getLastRemoteJid()}, operatorJid=${whatsappService.getOperatorJid()}`);
+			console.log(`[send_wa_message] DEBUG: resolvedJid=${resolvedJid}`);
 				return {
 					isError: true,
 					details: undefined,
@@ -436,6 +440,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
+			console.log(`[send_wa_message] DEBUG: status=${whatsappService.getStatus()}`);
 			if (whatsappService.getStatus() !== "connected") {
 				return {
 					isError: true,
@@ -454,16 +459,21 @@ export default function (pi: ExtensionAPI) {
 			}
 			// Update list filter: if updateList is non-empty, only allow sends to listed JIDs
 			const operatorJid = whatsappService.getOperatorJid();
-			const isToOperator =
-				operatorJid &&
-				resolvedJid ===
-					whatsappService.resolveOutboundRecipientJid(operatorJid);
+			const resolvedOperatorJid = operatorJid ? whatsappService.resolveOutboundRecipientJid(operatorJid) : null;
+			const isToOperator = operatorJid && resolvedJid === resolvedOperatorJid;
+
+			console.log(`[send_wa_message] DEBUG: operatorJid=${operatorJid}, resolvedOperatorJid=${resolvedOperatorJid}, isToOperator=${isToOperator}`);
+
+			const updateList = sessionManager.getUpdateList();
+			const isAllowed = await sessionManager.isAllowedUpdateTarget(resolvedJid);
+			console.log(`[send_wa_message] DEBUG: updateList=[${updateList.join(',')}], isAllowed=${isAllowed}`);
+
 			if (!isToOperator) {
-				const updateList = sessionManager.getUpdateList();
 				if (
 					updateList.length > 0 &&
-					!(await sessionManager.isAllowedUpdateTarget(resolvedJid))
+					!isAllowed
 				) {
+					console.log(`[send_wa_message] BLOCKED: ${resolvedJid} not in updateList and not operator`);
 					return {
 						isError: true,
 						details: undefined,
