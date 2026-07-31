@@ -196,11 +196,22 @@ export class SessionManager {
         const tempPath = `${this.configPath}.${process.pid}.${Date.now()}.tmp`;
         try {
             this.hasAuthState = this.hasAuthState || await this.hasCredentialsFile();
+            
+            // Preserve external updateList changes by reading current config
+            let externalUpdateList: Contact[] = [];
+            try {
+                const data = await readFile(this.configPath, 'utf-8');
+                const config = JSON.parse(data);
+                externalUpdateList = (config.updateList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            } catch {
+                // Ignore read errors, use in-memory list
+            }
+            
             const config = {
                 allowList: this.allowList,
                 allowedGroups: this.allowedGroups,
                 ignoredNumbers: this.ignoredNumbers,
-                updateList: this.updateList,
+                updateList: externalUpdateList.length > 0 ? externalUpdateList : this.updateList,
                 status: this.status,
                 hasAuthState: this.hasAuthState,
                 brandVisibility: this.brandVisibility,

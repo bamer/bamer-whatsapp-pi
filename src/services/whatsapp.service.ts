@@ -720,6 +720,16 @@ export class WhatsAppService {
             };
         }
 
+        // Force refresh group metadata for groups before sending
+        if (SessionManager.isGroupJid(normalizedJid)) {
+            try {
+                // Force refresh by calling groupMetadata directly (bypasses cache)
+                await socket.groupMetadata(normalizedJid);
+            } catch {
+                // Ignore metadata refresh errors
+            }
+        }
+
         try {
             await this.sendPresence(normalizedJid, 'composing');
             const response = await socket.sendMessage(normalizedJid, { text });

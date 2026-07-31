@@ -1225,6 +1225,7 @@ export class MenuHandler {
 	}
 
 	private toJid(number: string): string {
+		// Already a JID (group or contact with @domain)
 		if (number.includes("@")) {
 			return number;
 		}
