@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.0] - 2025-08-01
+
+### Added
+- **Media handling**: Save received images/videos to `whatsapp-medias/{image,video}/` with proper subdirectories
+- **Video processing**: Incoming video messages now processed and saved (was previously treated as text)
+- **`send_wa_media` tool**: Send images, videos, or documents to WhatsApp contacts/groups with optional caption
+- **`add_wa_group_participant` tool**: Add one or more participants to a WhatsApp group by phone number or JID
+- **`remove_wa_group_participant` tool**: Remove participants from a WhatsApp group
+- **Group metadata cache TTL**: Cache now expires after 5 minutes, preventing stale participant lists
+- **Force refresh on group send**: Every group message forces fresh metadata fetch via `prepareGroupSession(jid, true)`
+
+### Fixed
+- **Group metadata cache never expired**: Once cached with wrong participant count, it stayed stale forever
+- **Group messages sent to wrong recipients**: Bot was sending to itself (1 participant) instead of actual group members
+- **`senderMessageKeys` corruption**: Added stale sender key cleanup
+- **Baileys debug noise**: Suppressed "Removing old closed session" messages
+
 ## [1.4.0] - 2025-07-31
 
 ### Added
