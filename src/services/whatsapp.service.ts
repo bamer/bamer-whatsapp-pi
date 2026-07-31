@@ -1,17 +1,18 @@
 import {
-    makeWASocket,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore
+    makeCacheableSignalKeyStore,
+    makeWASocket
 } from 'baileys';
-import P from 'pino';
-import { SessionManager } from './session.manager.js';
-import { IncomingMessage, SessionStatus } from '../models/whatsapp.types.js';
-import { MessageSender } from './message.sender.js';
-import { installBaileysConsoleFilter } from './baileys-console-filter.js';
-import { t } from '../i18n.js';
 import { appendFileSync } from 'fs';
+import P from 'pino';
+import { t } from '../i18n.js';
+import { IncomingMessage, SessionStatus } from '../models/whatsapp.types.js';
+import { installBaileysConsoleFilter } from './baileys-console-filter.js';
+import { MessageSender } from './message.sender.js';
+import { SessionManager } from './session.manager.js';
 import { createStoragePaths } from './storage-path.js';
+import { WhatsAppPiLogger } from './whatsapp-pi.logger.js';
 
 const LOG_FILE = createStoragePaths().logPath;
 function fileLog(msg: string) {
@@ -104,6 +105,7 @@ interface BoomLikeError {
 }
 
 export class WhatsAppService {
+    private logger?: WhatsAppPiLogger;
     private static readonly INITIAL_RECONNECT_DELAY_MS = 5_000;
     private static readonly MAX_RECONNECT_DELAY_MS = 120_000;
 
@@ -129,6 +131,14 @@ export class WhatsAppService {
     constructor(sessionManager: SessionManager) {
         this.sessionManager = sessionManager;
         this.messageSender = new MessageSender(this);
+    }
+
+    setLogger(logger: WhatsAppPiLogger) {
+        this.logger = logger;
+    }
+
+    getLogger(): WhatsAppPiLogger | undefined {
+        return this.logger;
     }
 
     public setGroupBinding(groupJid: string) {

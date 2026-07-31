@@ -603,6 +603,9 @@ export class MenuHandler {
 		const brandVisibility = this.sessionManager.getBrandVisibility();
 		const autoConnect = this.sessionManager.getAutoConnect();
 		const assistantName = this.sessionManager.getAssistantName();
+		const agentSignature = this.sessionManager.getAgentSignature();
+		const logMaxSizeMB = this.sessionManager.getLogMaxSizeMB();
+		const logRetentionDays = this.sessionManager.getLogRetentionDays();
 		const title = t("menu.settings.title");
 		const brandVisibilityLabel =
 			brandVisibility ?
@@ -613,11 +616,17 @@ export class MenuHandler {
 				t("menu.settings.autoConnectYes")
 			:	t("menu.settings.autoConnectNo");
 		const assistantNameLabel = `${t("menu.settings.assistantName")}: ${assistantName}`;
+		const agentSignatureLabel = `${t("menu.settings.agentSignature")}: ${agentSignature || '(none)'}`;
+		const logMaxSizeLabel = t("menu.settings.logMaxSize", { value: logMaxSizeMB });
+		const logRetentionLabel = t("menu.settings.logRetention", { value: logRetentionDays });
 		const backLabel = t("menu.settings.back");
 		const options = [
 			brandVisibilityLabel,
 			autoConnectLabel,
 			assistantNameLabel,
+			agentSignatureLabel,
+			logMaxSizeLabel,
+			logRetentionLabel,
 			backLabel,
 		];
 

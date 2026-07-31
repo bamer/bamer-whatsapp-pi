@@ -44,6 +44,8 @@ export class SessionManager {
     private autoConnect = false;
     private assistantName = 'Agent Pi';
     private agentSignature = 'π';
+    private logMaxSizeMB = 5;
+    private logRetentionDays = 7;
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -125,6 +127,8 @@ export class SessionManager {
             this.autoConnect = Boolean(config.autoConnect);
             this.assistantName = config.assistantName || 'Agent Pi';
             this.agentSignature = config.agentSignature !== undefined ? config.agentSignature : 'π';
+            this.logMaxSizeMB = config.logMaxSizeMB || 5;
+            this.logRetentionDays = config.logRetentionDays || 7;
 
             if (recovered) {
                 await this.saveConfig();
@@ -204,7 +208,9 @@ export class SessionManager {
                 operatorJid: this.operatorJid,
                 autoConnect: this.autoConnect,
                 assistantName: this.assistantName,
-                agentSignature: this.agentSignature
+                agentSignature: this.agentSignature,
+                logMaxSizeMB: this.logMaxSizeMB,
+                logRetentionDays: this.logRetentionDays
             };
             await mkdir(this.storagePaths.root, { recursive: true });
             const serialized = JSON.stringify(config, null, 2);
@@ -446,6 +452,24 @@ export class SessionManager {
 
     async setAgentSignature(signature: string) {
         this.agentSignature = signature;
+        await this.saveConfig();
+    }
+
+    getLogMaxSizeMB(): number {
+        return this.logMaxSizeMB;
+    }
+
+    async setLogMaxSizeMB(size: number) {
+        this.logMaxSizeMB = size;
+        await this.saveConfig();
+    }
+
+    getLogRetentionDays(): number {
+        return this.logRetentionDays;
+    }
+
+    async setLogRetentionDays(days: number) {
+        this.logRetentionDays = days;
         await this.saveConfig();
     }
 

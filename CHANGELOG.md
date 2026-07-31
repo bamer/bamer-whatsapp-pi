@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0] - 2025-07-31
+
+### Added
+- **Log Settings submenu**: Configure max log file size (0=disabled, max 20MB) and retention (0=disabled, max 365 days) via `/whatsapp > Settings > Log Settings`
+- **Logger rotation & cleanup**: Automatic rotation at configured size, cleanup of logs older than configured retention, max 10 files retained
+- **Configurable logger**: Logger settings applied at startup, dynamically updatable via settings menu
+- **stderr-only logging**: All logger output goes to stderr, keeping stdout clean for `pi spawn`/`pi run` result parsing
+- **Voice transcription patch**: 🎤 icon on transcribed audio, π: prefix on bot replies (re-applied after npm update)
+
+### Changed
+- **Logger constructor**: Now accepts max size and retention from config (defaults: 5MB, 7 days)
+- **Logger methods**: `info()`, `log()`, `warn()`, `error()` all use `console.error` (stderr)
+- **Log file naming**: Timestamped files `whatsapp-pi-<ISO-timestamp>.log`
+- **Voice transcription format**: Now shows `🎤 {transcription}` instead of bare text
+
+### Fixed
+- **Log pollution**: Server reading stdout from `pi spawn` no longer receives WhatsApp-Pi logs
+- **Duplicate config keys**: Removed duplicate `logMaxSizeMB`/`logRetentionDays` entries in SessionManager
+- **Logger import**: Fixed missing `WhatsAppPiLogger` import in `WhatsAppService`
+
 ## [1.1.0] - 2025-07-30
 
 ### Added
