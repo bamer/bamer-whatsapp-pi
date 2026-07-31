@@ -7,7 +7,7 @@ import {
 import { appendFileSync } from 'fs';
 import P from 'pino';
 import { t } from '../i18n.js';
-import { IncomingMessage, SessionStatus } from '../models/whatsapp.types.js';
+import { IncomingMessage, MessageResult, SessionStatus } from '../models/whatsapp.types.js';
 import { installBaileysConsoleFilter } from './baileys-console-filter.js';
 import { MessageSender } from './message.sender.js';
 import { SessionManager } from './session.manager.js';
@@ -91,6 +91,7 @@ interface WhatsAppSocketLike {
     readMessages(messages: Array<{ remoteJid: string; id: string; fromMe: boolean }>): Promise<void>;
     groupMetadata(jid: string): Promise<{ id: string; subject: string; participants: Array<{ id: string }> }>;
     groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string }> }>>;
+    groupParticipantsUpdate(jid: string, participants: string[], action: 'add' | 'remove' | 'demote' | 'promote'): Promise<any>;
 }
 
 interface LastDisconnectLike {
@@ -796,5 +797,37 @@ const messageOptions: any = { text };
         this.isReconnecting = false;
         await this.sessionManager.setStatus('disconnected');
         this.onStatusUpdate?.(t('service.whatsapp.disconnected'));
+    }
+
+    /**
+     * Send a media message (image, video, document) to a JID.
+     */
+    public async sendMediaMessage(
+        recipientJid: string,
+        mediaPath: string,
+        type: 'image' | 'video' | 'document',
+        caption?: string
+    ): Promise<MessageResult> {
+        return this.messageSender.sendMedia(recipientJid, mediaPath, type, caption);
+    }
+
+    /**
+     * Add participants to a WhatsApp group.
+     */
+    public async addGroupParticipants(
+        groupJid: string,
+        participantJids: string[]
+    ): Promise<{ success: boolean; error?: string }> {
+        return this.messageSender.addGroupParticipants(groupJid, participantJids);
+    }
+
+    /**
+     * Remove participants from a WhatsApp group.
+     */
+    public async removeGroupParticipants(
+        groupJid: string,
+        participantJids: string[]
+    ): Promise<{ success: boolean; error?: string }> {
+        return this.messageSender.removeGroupParticipants(groupJid, participantJids);
     }
 }

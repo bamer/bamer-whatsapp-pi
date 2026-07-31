@@ -1,4 +1,5 @@
 import { appendFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { t } from '../i18n.js';
 import { MessageRequest, MessageResult, WhatsAppError } from '../models/whatsapp.types.js';
 import { createStoragePaths } from './storage-path.js';
@@ -124,5 +125,96 @@ export class MessageSender {
             error: lastError instanceof Error ? lastError.message : t('message.sender.unknownError'),
             attempts
         };
+    }
+
+    /**
+     * Send a media message (image, video, document) to a JID.
+     */
+    public async sendMedia(
+        recipientJid: string,
+        mediaPath: string,
+        type: 'image' | 'video' | 'document',
+        caption?: string
+    ): Promise<MessageResult> {
+        const isGroup = recipientJid.endsWith('@g.us');
+        let attempts = 0;
+        const maxRetries = isGroup ? 3 : 2;
+
+        while (attempts < maxRetries) {
+            attempts++;
+            try {
+                await this.waitIfOffline();
+                const socket = this.whatsappService.getSocket();
+                if (!socket) throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
+
+                if (isGroup) {
+                    await this.whatsappService.prepareGroupSession(recipientJid, true);
+                }
+
+                const buffer = readFileSync(mediaPath);
+                const content: any = {};
+                content[type] = buffer;
+                if (caption) content.caption = caption;
+
+                const response = await socket.sendMessage(recipientJid, content);
+                fileLog(`SUCCESS sending ${type} to ${recipientJid} on attempt ${attempts}`);
+                return { success: true, messageId: response?.key?.id, attempts };
+            } catch (error) {
+                console.error(`[MessageSender] ${type} send attempt ${attempts} failed:`, error instanceof Error ? error.message : String(error));
+                if (attempts < maxRetries) await this.sleep(Math.pow(2, attempts) * 1000);
+            }
+        }
+        return { success: false, error: `Failed to send ${type} after ${maxRetries} attempts`, attempts };
+    }
+
+    /**
+     * Add participants to a WhatsApp group.
+     */
+    public async addGroupParticipants(
+        groupJid: string,
+        participantJids: string[]
+    ): Promise<{ success: boolean; error?: string }> {
+        try {
+            const socket = this.whatsappService.getSocket();
+            if (!socket) throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
+
+            // Ensure JIDs have @s.whatsapp.net suffix
+            const normalized = participantJids.map(jid => 
+                jid.includes('@') ? jid : `${jid}@s.whatsapp.net`
+            );
+
+            await socket.groupParticipantsUpdate(groupJid, normalized, 'add');
+            fileLog(`SUCCESS adding ${normalized.length} participants to ${groupJid}`);
+            return { success: true };
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            fileLog(`FAILED adding participants to ${groupJid}: ${msg}`);
+            return { success: false, error: msg };
+        }
+    }
+
+    /**
+     * Remove participants from a WhatsApp group.
+     */
+    public async removeGroupParticipants(
+        groupJid: string,
+        participantJids: string[]
+    ): Promise<{ success: boolean; error?: string }> {
+        try {
+            const socket = this.whatsappService.getSocket();
+            if (!socket) throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
+
+            const normalized = participantJids.map(jid => 
+                jid.includes('@') ? jid : `${jid}@s.whatsapp.net`
+            );
+
+            await socket.groupParticipantsUpdate(groupJid, normalized, 'remove');
+            fileLog(`SUCCESS removing ${normalized.length} participants from ${groupJid}`);
+            return { success: true };
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            fileLog(`FAILED removing participants from ${groupJid}: ${msg}`);
+            return { success: false, error: msg };
+        }
     }
 }

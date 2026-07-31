@@ -613,6 +613,125 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
+	// Register send_wa_media tool (LLM-callable)
+	pi.registerTool({
+		name: "send_wa_media",
+		label: "Send WhatsApp Media",
+		description:
+			"Send an image, video, or document to a WhatsApp contact or group. The media must be a local file path.",
+		promptSnippet:
+			"send_wa_media(jid, mediaPath, type, caption?) - Send media. type is 'image', 'video', or 'document'. mediaPath is the local file path.",
+		parameters: Type.Object({
+			jid: Type.String({
+				description: "WhatsApp JID (e.g. 5511999998888@s.whatsapp.net or 120363012345@g.us)",
+			}),
+			mediaPath: Type.String({
+				description: "Local file path to the media",
+			}),
+			type: Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('document')], {
+				description: "Media type",
+			}),
+			caption: Type.Optional(
+				Type.String({ description: "Optional caption for the media" })
+			),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+			const result = await whatsappService.sendMediaMessage(
+				params.jid,
+				params.mediaPath,
+				params.type,
+				params.caption
+			);
+
+			return {
+				isError: !result.success,
+				details: undefined,
+				content: [
+					{
+						type: "text" as const,
+						text: JSON.stringify({
+							success: result.success,
+							messageId: result.messageId,
+							error: result.error,
+						}),
+					},
+				],
+			};
+		},
+	});
+
+	// Register add_wa_group_participant tool (LLM-callable)
+	pi.registerTool({
+		name: "add_wa_group_participant",
+		label: "Add Group Participant",
+		description:
+			"Add one or more participants to a WhatsApp group.",
+		promptSnippet:
+			"add_wa_group_participant(groupJid, participantJids) - Add participants to a group. participantJids is an array of phone numbers or JIDs.",
+		parameters: Type.Object({
+			groupJid: Type.String({
+				description: "Group JID (e.g. 120363012345@g.us)",
+			}),
+			participantJids: Type.Array(
+				Type.String({ description: "Phone number or JID of participant" }),
+				{ description: "List of participants to add" }
+			),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+			const result = await whatsappService.addGroupParticipants(
+				params.groupJid,
+				params.participantJids
+			);
+
+			return {
+				isError: !result.success,
+				details: undefined,
+				content: [
+					{
+						type: "text" as const,
+						text: JSON.stringify(result),
+					},
+				],
+			};
+		},
+	});
+
+	// Register remove_wa_group_participant tool (LLM-callable)
+	pi.registerTool({
+		name: "remove_wa_group_participant",
+		label: "Remove Group Participant",
+		description:
+			"Remove one or more participants from a WhatsApp group.",
+		promptSnippet:
+			"remove_wa_group_participant(groupJid, participantJids) - Remove participants from a group.",
+		parameters: Type.Object({
+			groupJid: Type.String({
+				description: "Group JID (e.g. 120363012345@g.us)",
+			}),
+			participantJids: Type.Array(
+				Type.String({ description: "Phone number or JID of participant" }),
+				{ description: "List of participants to remove" }
+			),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+			const result = await whatsappService.removeGroupParticipants(
+				params.groupJid,
+				params.participantJids
+			);
+
+			return {
+				isError: !result.success,
+				details: undefined,
+				content: [
+					{
+						type: "text" as const,
+						text: JSON.stringify(result),
+					},
+				],
+			};
+		},
+	});
+
 	// Register list_wa_conversations tool (LLM-callable, read-only)
 	pi.registerTool({
 		name: "list_wa_conversations",
