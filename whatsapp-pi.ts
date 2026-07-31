@@ -374,10 +374,7 @@ export default function (pi: ExtensionAPI) {
 
 			if (_ctx) {
 				_ctx.compact();
-				await whatsappService.sendMessage(
-					remoteJid!,
-					"Session compacted successfully! ✅",
-				);
+				whatsappService.sendMessage(remoteJid!, "Session compacted successfully! ✅").catch(() => {});
 			}
 			return;
 		}
@@ -386,7 +383,7 @@ export default function (pi: ExtensionAPI) {
 			logger.log(`[WhatsApp-Pi] Abort requested by ${pushName}.`);
 			if (_ctx) {
 				_ctx.abort();
-				await whatsappService.sendMessage(remoteJid!, "Aborted! ✅");
+				whatsappService.sendMessage(remoteJid!, "Aborted! ✅").catch(() => {});
 			}
 			return;
 		}
@@ -1024,23 +1021,24 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (outboundJid && text) {
-				try {
-					const result = await whatsappService.sendMessage(outboundJid, text);
+				// Fire-and-forget: don't block conversation
+				recentsService.recordMessage({
+					messageId: `pending-${Date.now()}`,
+					senderNumber: toRecentSenderNumber(outboundJid),
+					text,
+					direction: "outgoing",
+					timestamp: Date.now(),
+				}).catch(() => {});
+
+				whatsappService.sendMessage(outboundJid, text).then((result) => {
 					if (result.success) {
-						await recentsService.recordMessage({
-							messageId: result.messageId ?? `${Date.now()}`,
-							senderNumber: toRecentSenderNumber(outboundJid),
-							text,
-							direction: "outgoing",
-							timestamp: Date.now(),
-						});
-						ctx.ui.notify(t("notify.replySent"), "info");
+						console.log(`[message_end] SENT to ${outboundJid}`);
 					} else {
-						ctx.ui.notify(t("notify.replyFailed"), "error");
+						console.error(`[message_end] FAILED to ${outboundJid}: ${result.error}`);
 					}
-				} catch {
-					ctx.ui.notify(t("notify.replyFailed"), "error");
-				}
+				}).catch((err) => {
+					console.error(`[message_end] ERROR sending to ${outboundJid}:`, err);
+				});
 			}
 		}
 	});
