@@ -1,9 +1,9 @@
-import { WhatsAppService } from './whatsapp.service.js';
-import { WhatsAppPiLogger } from './whatsapp-pi.logger.js';
-import { MessageRequest, MessageResult, WhatsAppError } from '../models/whatsapp.types.js';
-import { t } from '../i18n.js';
 import { appendFileSync } from 'fs';
+import { t } from '../i18n.js';
+import { MessageRequest, MessageResult, WhatsAppError } from '../models/whatsapp.types.js';
 import { createStoragePaths } from './storage-path.js';
+import { WhatsAppPiLogger } from './whatsapp-pi.logger.js';
+import { WhatsAppService } from './whatsapp.service.js';
 
 const LOG_FILE = createStoragePaths().logPath;
 function fileLog(msg: string) {
@@ -69,12 +69,22 @@ export class MessageSender {
                     throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
                 }
 
-                // 3. Pre-load group metadata on first attempt
+                // 3. Force refresh group metadata for groups before every send attempt
+                // This avoids stale cached group metadata causing sender key errors
+                if (isGroup) {
+                    try {
+                        await socket.groupMetadata(request.recipientJid);
+                    } catch {
+                        // Ignore metadata refresh errors
+                    }
+                }
+
+                // 4. Pre-load group metadata on first attempt
                 if (isGroup && attempts === 1) {
                     await this.whatsappService.prepareGroupSession(request.recipientJid);
                 }
 
-                // 4. Send the message
+                // 5. Send the message
                 // Note: Branding π is applied here to ensure consistency
                 const text = this.whatsappService.getBrandVisibility() ? `${request.text} π` : request.text;
                 const messageOptions: any = { text };
