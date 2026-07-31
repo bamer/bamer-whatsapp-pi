@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.0] - 2025-08-01
+
+### Changed
+- **Baileys 6.17.16 → 7.0.0-rc14**: Major version upgrade adding LID (Local Identifier) support — the root cause of the persistent "Waiting for this message" bug in group messaging
+- **LID mapping system**: Baileys 7.0+ adds `resolveLIDSignalAddress`, `LIDMappingStore`, `WAMessageAddressingMode`, and USync LID protocol for automatic PN→LID conversion before encryption
+- **`@mariozechner/pi-tui` → `@earendil-works/pi-tui`**: Migrated to the new maintained package (v0.83.0)
+
+### Fixed
+- **Group "Waiting for this message" bug (ROOT CAUSE)**: Baileys 6.x had no LID mapping system. WhatsApp now uses LID addressing for groups, but v6 sent with PN identity → sender key distribution failed silently for all recipients. Baileys 7.0+ resolves this by converting PN→LID before encryption.
+- **Fire-and-forget `send_wa_message`**: All `sendMessage` calls (tool, `message_end` handler, `/compact`, `/abort`) are now non-blocking — agent turn returns immediately
+- **`fromMe` messages from linked devices**: Messages sent from linked devices (LID format like `64175502004378@lid`) are now processed correctly instead of being silently dropped
+- **Phone number normalization**: `isAllowed`, `getAllowedContact`, and `isAllowedUpdateTarget` now normalize `+` prefix before comparison, fixing LID JID matching against allowList/updateList
+- **`isAllowedUpdateTarget` not awaited**: Async method was not awaited in `fromMe` check, causing `isUpdateTarget` to be a Promise object (always truthy) instead of boolean
+- **Full JID passed to `isAllowedUpdateTarget`**: Group JIDs (e.g. `120363409409770410@g.us`) are now matched correctly in updateList
+- **Unified file logging**: All debug logs (including `console.log` in `whatsapp.service.ts`) now go to the same `whatsapp-pi.log` file via `fileLog()`
+
 ## [1.5.0] - 2025-08-01
 
 ### Added
