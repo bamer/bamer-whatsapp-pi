@@ -97,7 +97,7 @@ export class MessageSender {
                 };
             } catch (error: unknown) {
                 lastError = error;
-                console.error(`[MessageSender] ERROR attempt ${attempts}:`, error instanceof Error ? error.message : String(error));
+                fileLog(`ERROR attempt ${attempts}: ${error instanceof Error ? error.message : String(error)}`);
                 console.error(t('message.sender.attemptFailed', {
                     attempt: attempts,
                     recipientJid: request.recipientJid,

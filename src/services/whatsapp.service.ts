@@ -702,7 +702,8 @@ export class WhatsAppService {
             fileLog(`Fetching group metadata for ${jid}...`);
             const metadata = await socket.groupMetadata(jid);
             this.groupMetadataCache.set(jid, { data: metadata, timestamp: now });
-            fileLog(`Cached group metadata for ${jid} (${metadata.participants?.length ?? 0} participants)`);
+            const participantJids = metadata.participants?.map((p: any) => p.id || p.jid).filter(Boolean) ?? [];
+            fileLog(`Cached group metadata for ${jid} (${participantJids.length} participants: ${participantJids.join(', ')})`)
         } catch (error) {
             fileLog(`FAILED to fetch group metadata for ${jid}: ${error instanceof Error ? error.message : String(error)}`);
         }
