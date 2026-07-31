@@ -278,7 +278,12 @@ export class SessionManager {
     }
 
     getAllowedContact(number: string): Contact | undefined {
-        return this.allowList.find(c => c.number === number);
+        const raw = number.split('@')[0];
+        const normalized = raw.startsWith('+') ? raw : `+${raw}`;
+        return this.allowList.find(c => {
+            const listNum = c.number.startsWith('+') ? c.number : `+${c.number}`;
+            return listNum === normalized || c.number === raw || c.number === number;
+        });
     }
 
     getAllowedGroups(): Contact[] {
@@ -423,7 +428,12 @@ export class SessionManager {
     }
 
     isAllowed(number: string): boolean {
-        return this.allowList.some(c => c.number === number);
+        const raw = number.split('@')[0];
+        const normalized = raw.startsWith('+') ? raw : `+${raw}`;
+        return this.allowList.some(c => {
+            const listNum = c.number.startsWith('+') ? c.number : `+${c.number}`;
+            return listNum === normalized || c.number === raw || c.number === number;
+        });
     }
 
     isAllowedGroup(groupJid: string): boolean {
@@ -516,8 +526,12 @@ export class SessionManager {
         // Reload updateList from config to pick up external changes
         // (e.g., config modified externally while extension running)
         await this.reloadUpdateList();
-        const number = jid.split('@')[0];
-        return this.updateList.some(c => c.number === number || c.number === jid);
+        const rawNumber = jid.split('@')[0];
+        const normalized = rawNumber.startsWith('+') ? rawNumber : `+${rawNumber}`;
+        return this.updateList.some(c => {
+            const listNum = c.number.startsWith('+') ? c.number : `+${c.number}`;
+            return listNum === normalized || c.number === rawNumber || c.number === jid;
+        });
     }
 
     async addUpdateNumber(number: string, name?: string) {
