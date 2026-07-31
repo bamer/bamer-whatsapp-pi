@@ -33,6 +33,7 @@
     "prepare": "pnpm install"
   },
   "dependencies": {
+    "@earendil-works/pi-tui": "^0.83.0",
     "@llamaindex/liteparse": "^2.10.1",
     "@sinclair/typebox": "^0.34.52",
     "baileys": "^7.0.0-rc14",
