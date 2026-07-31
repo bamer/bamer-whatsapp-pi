@@ -508,52 +508,38 @@ export default function (pi: ExtensionAPI) {
 
 			const outboundJid =
 				whatsappService.resolveOutboundRecipientJid(resolvedJid);
-			const result = await whatsappService.sendMessage(outboundJid, message);
+						// Fire-and-forget: return immediately, send in background
+			toolSentToJid = outboundJid;
+			recentsService.recordMessage({
+				messageId: `pending-${Date.now()}`,
+				senderNumber: toRecentSenderNumber(outboundJid),
+				text: message,
+				direction: "outgoing",
+				timestamp: Date.now(),
+			}).catch(() => {});
 
-			if (result.success) {
-				// Mark that tool already sent to this JID — prevents message_end from re-sending
-				toolSentToJid = outboundJid;
-				await recentsService.recordMessage({
-					messageId: result.messageId!,
-					senderNumber: toRecentSenderNumber(outboundJid),
-					text: message,
-					direction: "outgoing",
-					timestamp: Date.now(),
-				});
-				logger.log(
-					[
-						t("log.result.title"),
-						t("log.outgoing.to", { jid: resolvedJid }),
-						t("log.result.status.sent"),
-						t("log.result.messageId", {
-							messageId: result.messageId ?? t("log.unknownMessageId"),
-						}),
-					].join("\n"),
-				);
-			} else {
-				logger.log(
-					[
-						t("log.result.title"),
-						t("log.outgoing.to", { jid: resolvedJid }),
-						t("log.result.status.failed"),
-						t("log.result.error", {
-							error: result.error ?? t("log.unknownError"),
-						}),
-					].join("\n"),
-				);
-			}
+			whatsappService.sendMessage(outboundJid, message).then((result) => {
+				if (result.success) {
+					console.log(`[send_wa_message] SENT to ${outboundJid}, messageId=${result.messageId}`);
+				} else {
+					console.error(`[send_wa_message] FAILED to ${outboundJid}: ${result.error}`);
+				}
+			}).catch((err) => {
+				console.error(`[send_wa_message] ERROR sending to ${outboundJid}:`, err);
+			});
+
+			console.log(`[send_wa_message] QUEUED (fire-and-forget) to ${outboundJid}`);
 
 			return {
-				isError: !result.success,
+				isError: false,
 				details: undefined,
 				content: [
 					{
 						type: "text" as const,
 						text: JSON.stringify({
-							success: result.success,
-							messageId: result.messageId,
-							error: result.error,
-							attempts: result.attempts,
+							success: true,
+							pending: true,
+							messageId: `pending-${Date.now()}`,
 						}),
 					},
 				],
