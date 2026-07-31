@@ -126,7 +126,7 @@ export class WhatsAppService {
     private lastRemoteJid: string | null = null;
     private qrWasShown = false;
     private boundGroupJid: string | null = null;
-    private groupMetadataCache: Map<string, { id: string; subject: string; participants: Array<{ id: string }> }> = new Map();
+    private groupMetadataCache: Map<string, { data: { id: string; subject: string; participants: Array<{ id: string }> }; timestamp: number }> = new Map();
 
     constructor(sessionManager: SessionManager) {
         this.sessionManager = sessionManager;
@@ -358,7 +358,7 @@ export class WhatsAppService {
             syncFullHistory: false,
             logger,
             cachedGroupMetadata: async (jid: string) => {
-                return groupMetadataCache.get(jid) as any;
+                const entry = groupMetadataCache.get(jid); return entry?.data as any;
             }
         }) as WhatsAppSocketLike;
 
@@ -669,10 +669,13 @@ export class WhatsAppService {
      * This ensures Baileys can resolve group participants for Signal
      * sender-key encryption, preventing "No sessions" errors.
      */
-    public async prepareGroupSession(jid: string): Promise<void> {
+    public async prepareGroupSession(jid: string, forceRefresh = false): Promise<void> {
         if (!jid.endsWith('@g.us')) return;
-        if (this.groupMetadataCache.has(jid)) {
-            fileLog(`Group metadata cache HIT for ${jid}`);
+        const now = Date.now();
+        const cached = this.groupMetadataCache.get(jid);
+        // Refresh if not cached, stale (>5 min), or forced
+        if (cached && !forceRefresh && (now - cached.timestamp) < 5 * 60 * 1000) {
+            fileLog(`Group metadata cache HIT for ${jid} (${cached.data.participants?.length ?? 0} participants, age ${Math.round((now - cached.timestamp) / 1000)}s)`);
             return;
         }
         const socket = this.getActiveSocket();
@@ -680,7 +683,7 @@ export class WhatsAppService {
         try {
             fileLog(`Fetching group metadata for ${jid}...`);
             const metadata = await socket.groupMetadata(jid);
-            this.groupMetadataCache.set(jid, metadata);
+            this.groupMetadataCache.set(jid, { data: metadata, timestamp: now });
             fileLog(`Cached group metadata for ${jid} (${metadata.participants?.length ?? 0} participants)`);
         } catch (error) {
             fileLog(`FAILED to fetch group metadata for ${jid}: ${error instanceof Error ? error.message : String(error)}`);

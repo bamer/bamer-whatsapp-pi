@@ -70,18 +70,9 @@ export class MessageSender {
                 }
 
                 // 3. Force refresh group metadata for groups before every send attempt
-                // This avoids stale cached group metadata causing sender key errors
+                // This ensures fresh participant list and sender keys
                 if (isGroup) {
-                    try {
-                        await socket.groupMetadata(request.recipientJid);
-                    } catch {
-                        // Ignore metadata refresh errors
-                    }
-                }
-
-                // 4. Pre-load group metadata on first attempt
-                if (isGroup && attempts === 1) {
-                    await this.whatsappService.prepareGroupSession(request.recipientJid);
+                    await this.whatsappService.prepareGroupSession(request.recipientJid, true);
                 }
 
                 // 5. Send the message
