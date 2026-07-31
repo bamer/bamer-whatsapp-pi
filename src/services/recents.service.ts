@@ -1,5 +1,4 @@
 import { readFile, writeFile } from 'fs/promises';
-import { createStoragePaths, ensureStorageDirectories as ensureStorageRoots, migrateLegacyStorage } from './storage-path.js';
 import type {
     MessageDirection,
     RecentConversationMessage,
@@ -7,6 +6,7 @@ import type {
     RecentsStore
 } from '../models/whatsapp.types.js';
 import { SessionManager } from './session.manager.js';
+import { createStoragePaths, ensureStorageDirectories as ensureStorageRoots, migrateLegacyStorage } from './storage-path.js';
 
 export interface RecentsMessageInput {
     messageId: string;

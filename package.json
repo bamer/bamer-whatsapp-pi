@@ -35,13 +35,13 @@
   "dependencies": {
     "@llamaindex/liteparse": "^2.10.1",
     "@sinclair/typebox": "^0.34.52",
-    "baileys": "^6.7.24",
+    "baileys": "^6.17.16",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
     "whisper-cpp-node": "^0.2.12"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "latest",
+    "@earendil-works/pi-coding-agent": ">=0.83.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.2",
     "@types/qrcode-terminal": "^0.12.2",
