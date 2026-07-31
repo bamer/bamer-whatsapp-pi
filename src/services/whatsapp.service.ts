@@ -590,14 +590,19 @@ export class WhatsAppService {
 
         const message = payload.messages?.[0];
         if (!message || !message.key.remoteJid) return;
-        // Skip messages sent by the operator (fromMe) — these are Ben's own
-        // messages to contacts, not messages directed to the agent.
-        if (message.key.fromMe) return;
+
+        const remoteJid = message.key.remoteJid;
+
+        // Skip messages sent by the operator to OTHER contacts.
+        // Allow fromMe when the operator sends to their own JID ("Message Yourself").
+        if (message.key.fromMe) {
+            const operatorJid = this.sessionManager.getOperatorJid();
+            const isSelfMessage = remoteJid === operatorJid || remoteJid === this.normalizeContactNumber(operatorJid?.split('@')[0] ?? '');
+            if (!isSelfMessage) return;
+        }
 
         const text = this.extractText(message.message);
         if (this.isPiGeneratedMessage(text)) return;
-
-        const remoteJid = message.key.remoteJid;
         const isGroup = remoteJid.endsWith('@g.us');
 
         if (this.boundGroupJid) {
