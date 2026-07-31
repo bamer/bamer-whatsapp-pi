@@ -586,23 +586,32 @@ export class WhatsAppService {
     }
 
     public async handleIncomingMessages(payload: MessagesUpsertEvent) {
+        fileLog(`[DEBUG] handleIncomingMessages called, status=${this.sessionManager.getStatus()}`);
         if (this.sessionManager.getStatus() !== 'connected') return;
 
         const message = payload.messages?.[0];
-        if (!message || !message.key.remoteJid) return;
+        if (!message || !message.key.remoteJid) {
+            fileLog(`[DEBUG] No message or remoteJid`);
+            return;
+        }
 
         const remoteJid = message.key.remoteJid;
+        fileLog(`[DEBUG] Message from remoteJid=${remoteJid}, fromMe=${message.key.fromMe}`);
 
         // Skip messages sent by the operator to OTHER contacts.
         // Allow fromMe when the operator sends to their own JID ("Message Yourself").
         if (message.key.fromMe) {
             const operatorJid = this.sessionManager.getOperatorJid();
             const isSelfMessage = remoteJid === operatorJid || remoteJid === this.normalizeContactNumber(operatorJid?.split('@')[0] ?? '');
+            fileLog(`[DEBUG] fromMe message: operatorJid=${operatorJid}, isSelfMessage=${isSelfMessage}`);
             if (!isSelfMessage) return;
         }
 
         const text = this.extractText(message.message);
-        if (this.isPiGeneratedMessage(text)) return;
+        if (this.isPiGeneratedMessage(text)) {
+            fileLog(`[DEBUG] Skipped: isPiGeneratedMessage`);
+            return;
+        }
         const isGroup = remoteJid.endsWith('@g.us');
 
         if (this.boundGroupJid) {
@@ -619,29 +628,31 @@ export class WhatsAppService {
         const senderJid = isGroup
             ? remoteJid
             : this.normalizeContactNumber(remoteJid.split('@')[0]);
+        fileLog(`[DEBUG] senderJid=${senderJid}, isGroup=${isGroup}`);
         void this.recordIncomingMessage(message, remoteJid, text);
 
         const pushName = message.pushName || undefined;
 
         if (this.boundGroupJid) {
             if (!this.sessionManager.isAllowedGroup(this.boundGroupJid)) {
+                fileLog(`[DEBUG] Group not allowed: ${this.boundGroupJid}`);
                 await this.sessionManager.trackIgnoredNumber(this.boundGroupJid, pushName);
                 return;
             }
 
             this.lastRemoteJid = remoteJid;
+            fileLog(`[DEBUG] Calling onMessage (group mode)`);
             this.onMessage?.(payload);
             return;
         }
 
         if (!this.sessionManager.isConversationAllowed(senderJid)) {
-            if (this.isVerbose()) {
-                console.log(t('service.whatsapp.ignoredNotAllowed', { senderJid }));
-            }
+            fileLog(`[DEBUG] NOT allowed: ${senderJid}`);
             await this.sessionManager.trackIgnoredNumber(senderJid, pushName);
             return;
         }
 
+        fileLog(`[DEBUG] Calling onMessage (direct mode), senderJid=${senderJid}`);
         this.lastRemoteJid = remoteJid;
         this.onMessage?.(payload);
     }

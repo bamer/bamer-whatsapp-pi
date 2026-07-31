@@ -1,4 +1,5 @@
 import { access, cp, mkdir, readdir, stat } from 'fs/promises';
+import { appendFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -68,6 +69,18 @@ async function copyEntry(source: string, target: string) {
     }
 
     await cp(source, target, { force: false, preserveTimestamps: true });
+}
+
+let _logPath: string | null = null;
+
+export function fileLog(message: string) {
+    try {
+        if (!_logPath) {
+            _logPath = join(getDefaultStorageRoot(), 'whatsapp-pi.log');
+        }
+        const timestamp = new Date().toISOString();
+        appendFileSync(_logPath, `[${timestamp}] ${message}\n`);
+    } catch {}
 }
 
 export async function migrateLegacyStorage(paths: Pick<StoragePaths, 'root' | 'legacyRoot'>): Promise<boolean> {
