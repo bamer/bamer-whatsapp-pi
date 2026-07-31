@@ -826,6 +826,13 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
+			// Only auto-reply if recipient is in updateList (allowed proactive target)
+			const isUpdateTarget = outboundJid && sessionManager.isAllowedUpdateTarget(outboundJid);
+
+			if (!isUpdateTarget) {
+				return; // Don't auto-reply to contacts not in updateList
+			}
+
 			if (outboundJid && text) {
 				try {
 					const result = await whatsappService.sendMessage(outboundJid, text);
