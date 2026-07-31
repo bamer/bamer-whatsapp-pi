@@ -1,6 +1,6 @@
 import type {
-    ExtensionAPI,
-    ExtensionContext,
+	ExtensionAPI,
+	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
 import { Type } from "@sinclair/typebox";
@@ -421,9 +421,9 @@ export default function (pi: ExtensionAPI) {
 				whatsappService.getOperatorJid();
 			if (!resolvedJid) {
 
-			console.log(`[send_wa_message] DEBUG: params.jid=${params.jid}, params.recipient_jid=${params.recipient_jid}`);
-			console.log(`[send_wa_message] DEBUG: lastRemoteJid=${whatsappService.getLastRemoteJid()}, operatorJid=${whatsappService.getOperatorJid()}`);
-			console.log(`[send_wa_message] DEBUG: resolvedJid=${resolvedJid}`);
+			fileLog(`[send_wa_message] DEBUG: params.jid=${params.jid}, params.recipient_jid=${params.recipient_jid}`);
+			fileLog(`[send_wa_message] DEBUG: lastRemoteJid=${whatsappService.getLastRemoteJid()}, operatorJid=${whatsappService.getOperatorJid()}`);
+			fileLog(`[send_wa_message] DEBUG: resolvedJid=${resolvedJid}`);
 				return {
 					isError: true,
 					details: undefined,
@@ -440,7 +440,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			console.log(`[send_wa_message] DEBUG: status=${whatsappService.getStatus()}`);
+			fileLog(`[send_wa_message] DEBUG: status=${whatsappService.getStatus()}`);
 			if (whatsappService.getStatus() !== "connected") {
 				return {
 					isError: true,
@@ -462,18 +462,18 @@ export default function (pi: ExtensionAPI) {
 			const resolvedOperatorJid = operatorJid ? whatsappService.resolveOutboundRecipientJid(operatorJid) : null;
 			const isToOperator = operatorJid && resolvedJid === resolvedOperatorJid;
 
-			console.log(`[send_wa_message] DEBUG: operatorJid=${operatorJid}, resolvedOperatorJid=${resolvedOperatorJid}, isToOperator=${isToOperator}`);
+			fileLog(`[send_wa_message] DEBUG: operatorJid=${operatorJid}, resolvedOperatorJid=${resolvedOperatorJid}, isToOperator=${isToOperator}`);
 
 			const updateList = sessionManager.getUpdateList();
 			const isAllowed = await sessionManager.isAllowedUpdateTarget(resolvedJid);
-			console.log(`[send_wa_message] DEBUG: updateList=[${updateList.join(',')}], isAllowed=${isAllowed}`);
+			fileLog(`[send_wa_message] DEBUG: updateList=[${updateList.join(',')}], isAllowed=${isAllowed}`);
 
 			if (!isToOperator) {
 				if (
 					updateList.length > 0 &&
 					!isAllowed
 				) {
-					console.log(`[send_wa_message] BLOCKED: ${resolvedJid} not in updateList and not operator`);
+					fileLog(`[send_wa_message] BLOCKED: ${resolvedJid} not in updateList and not operator`);
 					return {
 						isError: true,
 						details: undefined,
@@ -520,15 +520,15 @@ export default function (pi: ExtensionAPI) {
 
 			whatsappService.sendMessage(outboundJid, message).then((result) => {
 				if (result.success) {
-					console.log(`[send_wa_message] SENT to ${outboundJid}, messageId=${result.messageId}`);
+					fileLog(`[send_wa_message] SENT to ${outboundJid}, messageId=${result.messageId}`);
 				} else {
-					console.error(`[send_wa_message] FAILED to ${outboundJid}: ${result.error}`);
+					fileLog(`[send_wa_message] FAILED to ${outboundJid}: ${result.error}`);
 				}
 			}).catch((err) => {
-				console.error(`[send_wa_message] ERROR sending to ${outboundJid}:`, err);
+				fileLog(`[send_wa_message] ERROR sending to ${outboundJid}:`, err);
 			});
 
-			console.log(`[send_wa_message] QUEUED (fire-and-forget) to ${outboundJid}`);
+			fileLog(`[send_wa_message] QUEUED (fire-and-forget) to ${outboundJid}`);
 
 			return {
 				isError: false,
