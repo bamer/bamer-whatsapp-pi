@@ -15,30 +15,46 @@ import { WhatsAppPiLogger } from "./src/services/whatsapp-pi.logger.js";
 import { WhatsAppService } from "./src/services/whatsapp.service.js";
 import { MenuHandler } from "./src/ui/menu.handler.js";
 
-// --- Extension context mode helpers (copied from @llblab/pi-telegram/lib/pi.ts) ---
-type PiRunMode = "tui" | "rpc" | "json" | "print";
+// --- Extension Context Mode Helpers ---
+// Determines if Pi is running in an interactive mode where long-lived connections
+// (WhatsApp, Telegram) should be established. Passive modes (json, print) are for
+// one-shot commands and should not start background services.
 
-function isPiRunMode(value: unknown): value is PiRunMode {
-    return (
-        value === "tui" || value === "rpc" || value === "json" || value === "print"
-    );
+/** Pi runtime execution modes. */
+type ExtensionRunMode = "tui" | "rpc" | "json" | "print";
+
+/** Check if a value is a valid Pi run mode. */
+function isExtensionRunMode(value: unknown): value is ExtensionRunMode {
+    return value === "tui" || value === "rpc" || value === "json" || value === "print";
 }
 
-function getExtensionContextMode(ctx: unknown): "tui" | "rpc" | "json" | "print" | undefined {
-    const mode =
-        typeof ctx === "object" && ctx !== null
-            ? (ctx as { mode?: unknown }).mode
-            : undefined;
-    return (["tui", "rpc", "json", "print"] as const).includes(mode as any) ? mode as any : undefined;
+/**
+ * Extract the Pi run mode from an extension context.
+ * Returns undefined if mode cannot be determined.
+ */
+function getExtensionRunMode(ctx: unknown): ExtensionRunMode | undefined {
+    if (typeof ctx !== "object" || ctx === null) return undefined;
+    const mode = (ctx as { mode?: unknown }).mode;
+    return isExtensionRunMode(mode) ? mode : undefined;
 }
 
-function isExtensionContextPassiveRunMode(ctx: unknown): boolean {
-    const mode = getExtensionContextMode(ctx);
-    return mode === "print" || mode === "json";
+/**
+ * Check if Pi is running in a passive (non-interactive) mode.
+ * Passive modes: "json", "print" — used for one-shot commands, scripting, CI.
+ * In these modes, extensions should NOT start background connections/polling.
+ */
+function isPassiveRunMode(ctx: unknown): boolean {
+    const mode = getExtensionRunMode(ctx);
+    return mode === "json" || mode === "print";
 }
 
-function canStartPollingInExtensionContext(ctx: unknown): boolean {
-    return !isExtensionContextPassiveRunMode(ctx);
+/**
+ * Check if WhatsApp/Telegram polling should start in the current context.
+ * Returns true for interactive modes ("tui", "rpc"), false for passive modes.
+ * Use this to guard auto-connect logic on extension startup.
+ */
+function shouldStartPolling(ctx: unknown): boolean {
+    return !isPassiveRunMode(ctx);
 }
 
 
@@ -232,7 +248,7 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 
-		if (isWhatsappPiOn && registered && canStartPollingInExtensionContext(ctx)) {
+		if (isWhatsappPiOn && registered && shouldStartPolling(ctx)) {
 			ctx.ui.setStatus("whatsapp", "| WhatsApp: Auto-connecting...");
 
 			// Retry logic (max 3 attempts, 3s delay)
