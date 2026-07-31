@@ -2,6 +2,9 @@ import type {
     ExtensionAPI,
     ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import {
+    canStartPollingInExtensionContext,
+} from "@llblab/pi-telegram/lib/pi.js";
 import { Type } from "@sinclair/typebox";
 import { initI18n, t } from "./src/i18n.js";
 import { AudioService } from "./src/services/audio.service.js";
@@ -203,7 +206,7 @@ export default function (pi: ExtensionAPI) {
 			}
 		}
 
-		if (isWhatsappPiOn && registered) {
+		if (isWhatsappPiOn && registered && canStartPollingInExtensionContext(ctx)) {
 			ctx.ui.setStatus("whatsapp", "| WhatsApp: Auto-connecting...");
 
 			// Retry logic (max 3 attempts, 3s delay)

@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.0] - 2025-07-31
+
+### Added
+- **Interactive mode check for auto-connect**: Extension now only auto-connects on Pi startup when running in interactive mode (matches Telegram extension behavior)
+- **Message end handler restriction**: Auto-reply now only triggers for contacts in `updateList`, preventing assistant messages from being sent to random WhatsApp contacts
+- **Prepare script**: Added `prepare: "pnpm install"` to package.json for automatic dependency installation on `pi update --extensions`
+
+### Changed
+- **Auto-connect behavior**: Now checks `canStartPollingInExtensionContext(ctx)` before auto-connecting, skipping in passive modes (`json`, `print`, `rpc`)
+- **Message end handler**: Only auto-replies to contacts in `updateList` (previously replied to all contacts with `lastRemoteJid`)
+- **Auto-install dependencies**: `prepare` script runs `pnpm install` automatically after `pi update --extensions`
+
+### Fixed
+- **Critical bug**: Assistant messages in Pi chat were being sent to last WhatsApp contact (`lastRemoteJid`) via `message_end` handler
+- **Auto-connect in passive modes**: Extension no longer attempts WhatsApp connection in `pi --json`, `pi --print`, or `pi --rpc` modes
+
 ## [1.3.0] - 2025-07-31
 
 ### Added
