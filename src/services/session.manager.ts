@@ -119,6 +119,11 @@ export class SessionManager {
             this.allowedGroups = this.mergeContacts(loadedAllowedGroups, migratedGroups);
             this.ignoredNumbers = (config.ignoredNumbers || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
             this.updateList = (config.updateList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            // Validate and deduplicate all contact lists
+            const warnings = this.validateAndDeduplicateContacts();
+            if (warnings.length > 0) {
+                console.warn('[SessionManager] Contact validation warnings:', warnings);
+            }
             this.status = config.status || 'logged-out';
             this.hasAuthState = Boolean(config.hasAuthState);
             this.brandVisibility = config.brandVisibility !== false;
@@ -238,6 +243,8 @@ export class SessionManager {
             await this.removeConfigTempFile(tempPath);
             console.error(t('session.manager.failedSaveConfig'), error);
         }
+        // Validate after save
+        this.validateAndDeduplicateContacts();
     }
 
     private async cleanupStaleConfigTempFiles() {
@@ -480,6 +487,11 @@ export class SessionManager {
         return this.logRetentionDays;
     }
 
+    /** Get validation warnings for current contact lists. */
+    getValidationWarnings(): string[] {
+        return this.validateAndDeduplicateContacts();
+    }
+
     async setLogRetentionDays(days: number) {
         this.logRetentionDays = days;
         await this.saveConfig();
@@ -540,6 +552,76 @@ export class SessionManager {
             }
         }
         return merged;
+    }
+
+    /**
+     * Validate and deduplicate all contact lists.
+     * Ensures no duplicate numbers across lists, and consistent aliases.
+     * Returns warnings for any issues found.
+     */
+    validateAndDeduplicateContacts(): string[] {
+        const warnings: string[] = [];
+        const seen = new Map<string, { list: string; name?: string }>();
+
+        // Check allowList
+        for (const contact of this.allowList) {
+            const key = contact.number;
+            if (seen.has(key)) {
+                warnings.push(`Duplicate number in allowList: ${contact.number} (alias: ${contact.name || 'none'})`);
+            } else {
+                seen.set(key, { list: 'allowList', name: contact.name });
+            }
+        }
+
+        // Check allowedGroups
+        for (const contact of this.allowedGroups) {
+            const key = contact.number;
+            if (seen.has(key)) {
+                const prev = seen.get(key)!;
+                warnings.push(`Number ${contact.number} exists in ${prev.list} (alias: ${prev.name || 'none'}) and allowedGroups (alias: ${contact.name || 'none'})`);
+            } else {
+                seen.set(key, { list: 'allowedGroups', name: contact.name });
+            }
+        }
+
+        // Check ignoredNumbers
+        for (const contact of this.ignoredNumbers) {
+            const key = contact.number;
+            if (seen.has(key)) {
+                const prev = seen.get(key)!;
+                warnings.push(`Number ${contact.number} exists in ${prev.list} (alias: ${prev.name || 'none'}) and ignoredNumbers (alias: ${contact.name || 'none'})`);
+            } else {
+                seen.set(key, { list: 'ignoredNumbers', name: contact.name });
+            }
+        }
+
+        // Check updateList
+        for (const contact of this.updateList) {
+            const key = contact.number;
+            if (seen.has(key)) {
+                const prev = seen.get(key)!;
+                warnings.push(`Number ${contact.number} exists in ${prev.list} (alias: ${prev.name || 'none'}) and updateList (alias: ${contact.name || 'none'})`);
+            } else {
+                seen.set(key, { list: 'updateList', name: contact.name });
+            }
+        }
+
+        // Deduplicate within each list (keep first occurrence)
+        this.allowList = this.deduplicateList(this.allowList);
+        this.allowedGroups = this.deduplicateList(this.allowedGroups);
+        this.ignoredNumbers = this.deduplicateList(this.ignoredNumbers);
+        this.updateList = this.deduplicateList(this.updateList);
+
+        return warnings;
+    }
+
+    private deduplicateList(list: Contact[]): Contact[] {
+        const seen = new Set<string>();
+        return list.filter(contact => {
+            if (seen.has(contact.number)) return false;
+            seen.add(contact.number);
+            return true;
+        });
     }
 
     public async isRegistered(): Promise<boolean> {
