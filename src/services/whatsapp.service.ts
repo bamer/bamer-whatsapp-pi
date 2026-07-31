@@ -719,7 +719,7 @@ export class WhatsAppService {
             recipientJid,
             text: text,
             options: {
-                useCachedGroupMetadata: true
+                useCachedGroupMetadata: false
             }
         });
 
