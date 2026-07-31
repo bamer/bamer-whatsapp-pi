@@ -603,7 +603,7 @@ export class WhatsAppService {
         if (message.key.fromMe) {
             const senderNumber = this.normalizeContactNumber(remoteJid.split('@')[0]);
             const isAllowed = this.sessionManager.isConversationAllowed(senderNumber);
-            const isUpdateTarget = await this.sessionManager.isAllowedUpdateTarget(senderNumber);
+            const isUpdateTarget = await this.sessionManager.isAllowedUpdateTarget(remoteJid);
             fileLog(`[DEBUG] fromMe: remoteJid=${remoteJid}, senderNumber=${senderNumber}, isAllowed=${isAllowed}, isUpdateTarget=${isUpdateTarget}`);
             if (!isAllowed && !isUpdateTarget) return;
         }
