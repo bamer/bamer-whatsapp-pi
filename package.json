@@ -29,7 +29,8 @@
   "scripts": {
     "lint": "eslint whatsapp-pi.ts \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "pnpm install"
   },
   "dependencies": {
     "@llamaindex/liteparse": "^2.10.1",
