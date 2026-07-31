@@ -359,7 +359,10 @@ export class WhatsAppService {
             syncFullHistory: false,
             logger,
             cachedGroupMetadata: async (jid: string) => {
-                const entry = groupMetadataCache.get(jid); return entry?.data as any;
+                const entry = groupMetadataCache.get(jid);
+                const participants = (entry?.data as any)?.participants?.map((p: any) => p.id || p.jid) ?? [];
+                fileLog(`[cachedGroupMetadata] Called for ${jid}: ${entry ? 'HIT' : 'MISS'}, participants=${participants.join(', ')}`);
+                return entry?.data as any;
             }
         }) as WhatsAppSocketLike;
 
@@ -712,8 +715,8 @@ export class WhatsAppService {
     async sendMessage(jid: string, text: string) {
         const recipientJid = this.resolveOutboundRecipientJid(jid);
         const isGroup = SessionManager.isGroupJid(recipientJid);
+        fileLog(`[sendMessage] jid=${jid} → recipientJid=${recipientJid}, isGroup=${isGroup}, status=${this.getStatus()}`);
 
-        // Ensure we show the typing indicator before sending
         await this.sendPresence(recipientJid, 'composing');
 
         const result = await this.messageSender.send({
@@ -724,7 +727,7 @@ export class WhatsAppService {
             }
         });
 
-        // After sending, we can stop the typing indicator
+        fileLog(`[sendMessage] Result: success=${result.success}, error=${result.error}, attempts=${result.attempts}`);
         await this.sendPresence(recipientJid, 'paused');
 
         if (!result.success) {

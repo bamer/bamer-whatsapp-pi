@@ -52,42 +52,39 @@ export class MessageSender {
      */
     public async send(request: MessageRequest): Promise<MessageResult> {
         const isGroup = request.recipientJid.endsWith('@g.us');
-        // Groups need more retries because the first send bootstraps
-        // the Signal sender-key session (causes "No sessions" on first attempts)
         const maxRetries = isGroup ? 5 : (request.options?.maxRetries ?? 3);
         let attempts = 0;
         let lastError: unknown = null;
 
+        fileLog(`[SEND] Start: recipientJid=${request.recipientJid}, isGroup=${isGroup}, maxRetries=${maxRetries}`);
+
         while (attempts < maxRetries) {
             attempts++;
             try {
-                // 1. Ensure we are online
+                fileLog(`[SEND] Attempt ${attempts}/${maxRetries}`);
                 await this.waitIfOffline();
                 
-                // 2. Get active socket
                 const socket = this.whatsappService.getSocket();
-                console.log(`[MessageSender] DEBUG: attempt ${attempts}, isGroup=${isGroup}, recipientJid=${request.recipientJid}`);
                 if (!socket) {
+                    fileLog(`[SEND] ERROR: socket is null`);
                     throw new WhatsAppError('SOCKET_NOT_INIT', t('message.sender.socketNotInitialized'));
                 }
+                fileLog(`[SEND] Socket OK, socket.user=${JSON.stringify(socket.user || {})}`);
 
-                // 3. Force refresh group metadata for groups before every send attempt
-                // This ensures fresh participant list and sender keys
                 if (isGroup) {
+                    fileLog(`[SEND] Group: refreshing metadata for ${request.recipientJid}`);
                     await this.whatsappService.prepareGroupSession(request.recipientJid, true);
                 }
 
-                // 5. Send the message
-                // Note: Branding π is applied here to ensure consistency
                 const text = this.whatsappService.getBrandVisibility() ? `${request.text} π` : request.text;
                 const messageOptions: any = { text };
-                // Forward useCachedGroupMetadata if provided in options
                 if (request.options?.useCachedGroupMetadata !== undefined) {
                     messageOptions.useCachedGroupMetadata = request.options.useCachedGroupMetadata;
                 }
-                console.log(`[MessageSender] DEBUG: sending to ${request.recipientJid}, text=${request.text.substring(0, 50)}...`);
+                fileLog(`[SEND] Calling socket.sendMessage to ${request.recipientJid}, useCachedGroupMetadata=${messageOptions.useCachedGroupMetadata}`);
                 const response = await socket.sendMessage(request.recipientJid, messageOptions);
-                console.log(`[MessageSender] DEBUG: response=${JSON.stringify(response?.key || {})}`);
+                fileLog(`[SEND] Response: key=${JSON.stringify(response?.key || {})}`);
+                fileLog(`[SEND] Response full: ${JSON.stringify(response || {}).substring(0, 500)}`);
 
                 fileLog(`SUCCESS sending to ${request.recipientJid} on attempt ${attempts}`);
                 return {
