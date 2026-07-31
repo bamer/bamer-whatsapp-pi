@@ -358,12 +358,10 @@ export class WhatsAppService {
             },
             syncFullHistory: false,
             logger,
-            cachedGroupMetadata: async (jid: string) => {
-                const entry = groupMetadataCache.get(jid);
-                const participants = (entry?.data as any)?.participants?.map((p: any) => p.id || p.jid) ?? [];
-                fileLog(`[cachedGroupMetadata] Called for ${jid}: ${entry ? 'HIT' : 'MISS'}, participants=${participants.join(', ')}`);
-                return entry?.data as any;
-            }
+            // No cachedGroupMetadata callback — let Baileys fetch fresh metadata
+            // for sender key distribution. Our prepareGroupSession() handles
+            // caching for the send path, but Baileys internal operations
+            // (sender key distribution) need to hit WhatsApp servers directly.
         }) as WhatsAppSocketLike;
 
         return socket;
