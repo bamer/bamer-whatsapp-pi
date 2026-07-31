@@ -25,7 +25,9 @@ type ExtensionRunMode = "tui" | "rpc" | "json" | "print";
 
 /** Check if a value is a valid Pi run mode. */
 function isExtensionRunMode(value: unknown): value is ExtensionRunMode {
-    return value === "tui" || value === "rpc" || value === "json" || value === "print";
+	return (
+		value === "tui" || value === "rpc" || value === "json" || value === "print"
+	);
 }
 
 /**
@@ -33,9 +35,9 @@ function isExtensionRunMode(value: unknown): value is ExtensionRunMode {
  * Returns undefined if mode cannot be determined.
  */
 function getExtensionRunMode(ctx: unknown): ExtensionRunMode | undefined {
-    if (typeof ctx !== "object" || ctx === null) return undefined;
-    const mode = (ctx as { mode?: unknown }).mode;
-    return isExtensionRunMode(mode) ? mode : undefined;
+	if (typeof ctx !== "object" || ctx === null) return undefined;
+	const mode = (ctx as { mode?: unknown }).mode;
+	return isExtensionRunMode(mode) ? mode : undefined;
 }
 
 /**
@@ -44,8 +46,8 @@ function getExtensionRunMode(ctx: unknown): ExtensionRunMode | undefined {
  * In these modes, extensions should NOT start background connections/polling.
  */
 function isPassiveRunMode(ctx: unknown): boolean {
-    const mode = getExtensionRunMode(ctx);
-    return mode === "json" || mode === "print";
+	const mode = getExtensionRunMode(ctx);
+	return mode === "json" || mode === "print";
 }
 
 /**
@@ -54,10 +56,8 @@ function isPassiveRunMode(ctx: unknown): boolean {
  * Use this to guard auto-connect logic on extension startup.
  */
 function shouldStartPolling(ctx: unknown): boolean {
-    return !isPassiveRunMode(ctx);
+	return !isPassiveRunMode(ctx);
 }
-
-
 
 const shutdownState = globalThis as typeof globalThis & {
 	__whatsappPiShutdown?: {
@@ -420,10 +420,13 @@ export default function (pi: ExtensionAPI) {
 				whatsappService.getLastRemoteJid() ||
 				whatsappService.getOperatorJid();
 			if (!resolvedJid) {
-
-			fileLog(`[send_wa_message] DEBUG: params.jid=${params.jid}, params.recipient_jid=${params.recipient_jid}`);
-			fileLog(`[send_wa_message] DEBUG: lastRemoteJid=${whatsappService.getLastRemoteJid()}, operatorJid=${whatsappService.getOperatorJid()}`);
-			fileLog(`[send_wa_message] DEBUG: resolvedJid=${resolvedJid}`);
+				logger.log(
+					`[send_wa_message] DEBUG: params.jid=${params.jid}, params.recipient_jid=${params.recipient_jid}`,
+				);
+				logger.log(
+					`[send_wa_message] DEBUG: lastRemoteJid=${whatsappService.getLastRemoteJid()}, operatorJid=${whatsappService.getOperatorJid()}`,
+				);
+				logger.log(`[send_wa_message] DEBUG: resolvedJid=${resolvedJid}`);
 				return {
 					isError: true,
 					details: undefined,
@@ -440,7 +443,9 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			fileLog(`[send_wa_message] DEBUG: status=${whatsappService.getStatus()}`);
+			logger.log(
+				`[send_wa_message] DEBUG: status=${whatsappService.getStatus()}`,
+			);
 			if (whatsappService.getStatus() !== "connected") {
 				return {
 					isError: true,
@@ -459,21 +464,27 @@ export default function (pi: ExtensionAPI) {
 			}
 			// Update list filter: if updateList is non-empty, only allow sends to listed JIDs
 			const operatorJid = whatsappService.getOperatorJid();
-			const resolvedOperatorJid = operatorJid ? whatsappService.resolveOutboundRecipientJid(operatorJid) : null;
+			const resolvedOperatorJid =
+				operatorJid ?
+					whatsappService.resolveOutboundRecipientJid(operatorJid)
+				:	null;
 			const isToOperator = operatorJid && resolvedJid === resolvedOperatorJid;
 
-			fileLog(`[send_wa_message] DEBUG: operatorJid=${operatorJid}, resolvedOperatorJid=${resolvedOperatorJid}, isToOperator=${isToOperator}`);
+			logger.log(
+				`[send_wa_message] DEBUG: operatorJid=${operatorJid}, resolvedOperatorJid=${resolvedOperatorJid}, isToOperator=${isToOperator}`,
+			);
 
 			const updateList = sessionManager.getUpdateList();
 			const isAllowed = await sessionManager.isAllowedUpdateTarget(resolvedJid);
-			fileLog(`[send_wa_message] DEBUG: updateList=[${updateList.join(',')}], isAllowed=${isAllowed}`);
+			logger.log(
+				`[send_wa_message] DEBUG: updateList=[${updateList.join(",")}], isAllowed=${isAllowed}`,
+			);
 
 			if (!isToOperator) {
-				if (
-					updateList.length > 0 &&
-					!isAllowed
-				) {
-					fileLog(`[send_wa_message] BLOCKED: ${resolvedJid} not in updateList and not operator`);
+				if (updateList.length > 0 && !isAllowed) {
+					logger.log(
+						`[send_wa_message] BLOCKED: ${resolvedJid} not in updateList and not operator`,
+					);
 					return {
 						isError: true,
 						details: undefined,
@@ -508,27 +519,38 @@ export default function (pi: ExtensionAPI) {
 
 			const outboundJid =
 				whatsappService.resolveOutboundRecipientJid(resolvedJid);
-						// Fire-and-forget: return immediately, send in background
+			// Fire-and-forget: return immediately, send in background
 			toolSentToJid = outboundJid;
-			recentsService.recordMessage({
-				messageId: `pending-${Date.now()}`,
-				senderNumber: toRecentSenderNumber(outboundJid),
-				text: message,
-				direction: "outgoing",
-				timestamp: Date.now(),
-			}).catch(() => {});
+			recentsService
+				.recordMessage({
+					messageId: `pending-${Date.now()}`,
+					senderNumber: toRecentSenderNumber(outboundJid),
+					text: message,
+					direction: "outgoing",
+					timestamp: Date.now(),
+				})
+				.catch(() => {});
 
-			whatsappService.sendMessage(outboundJid, message).then((result) => {
-				if (result.success) {
-					fileLog(`[send_wa_message] SENT to ${outboundJid}, messageId=${result.messageId}`);
-				} else {
-					fileLog(`[send_wa_message] FAILED to ${outboundJid}: ${result.error}`);
-				}
-			}).catch((err) => {
-				fileLog(`[send_wa_message] ERROR sending to ${outboundJid}:`, err);
-			});
+			whatsappService
+				.sendMessage(outboundJid, message)
+				.then((result) => {
+					if (result.success) {
+						logger.log(
+							`[send_wa_message] SENT to ${outboundJid}, messageId=${result.messageId}`,
+						);
+					} else {
+						logger.log(
+							`[send_wa_message] FAILED to ${outboundJid}: ${result.error}`,
+						);
+					}
+				})
+				.catch((err) => {
+					logger.log(`[send_wa_message] ERROR sending to ${outboundJid}:`, err);
+				});
 
-			fileLog(`[send_wa_message] QUEUED (fire-and-forget) to ${outboundJid}`);
+			logger.log(
+				`[send_wa_message] QUEUED (fire-and-forget) to ${outboundJid}`,
+			);
 
 			return {
 				isError: false,
@@ -619,16 +641,24 @@ export default function (pi: ExtensionAPI) {
 			"send_wa_media(jid, mediaPath, type, caption?) - Send media. type is 'image', 'video', or 'document'. mediaPath is the local file path.",
 		parameters: Type.Object({
 			jid: Type.String({
-				description: "WhatsApp JID (e.g. 5511999998888@s.whatsapp.net or 120363012345@g.us)",
+				description:
+					"WhatsApp JID (e.g. 5511999998888@s.whatsapp.net or 120363012345@g.us)",
 			}),
 			mediaPath: Type.String({
 				description: "Local file path to the media",
 			}),
-			type: Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('document')], {
-				description: "Media type",
-			}),
+			type: Type.Union(
+				[
+					Type.Literal("image"),
+					Type.Literal("video"),
+					Type.Literal("document"),
+				],
+				{
+					description: "Media type",
+				},
+			),
 			caption: Type.Optional(
-				Type.String({ description: "Optional caption for the media" })
+				Type.String({ description: "Optional caption for the media" }),
 			),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
@@ -636,7 +666,7 @@ export default function (pi: ExtensionAPI) {
 				params.jid,
 				params.mediaPath,
 				params.type,
-				params.caption
+				params.caption,
 			);
 
 			return {
@@ -660,8 +690,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "add_wa_group_participant",
 		label: "Add Group Participant",
-		description:
-			"Add one or more participants to a WhatsApp group.",
+		description: "Add one or more participants to a WhatsApp group.",
 		promptSnippet:
 			"add_wa_group_participant(groupJid, participantJids) - Add participants to a group. participantJids is an array of phone numbers or JIDs.",
 		parameters: Type.Object({
@@ -670,13 +699,13 @@ export default function (pi: ExtensionAPI) {
 			}),
 			participantJids: Type.Array(
 				Type.String({ description: "Phone number or JID of participant" }),
-				{ description: "List of participants to add" }
+				{ description: "List of participants to add" },
 			),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const result = await whatsappService.addGroupParticipants(
 				params.groupJid,
-				params.participantJids
+				params.participantJids,
 			);
 
 			return {
@@ -696,8 +725,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "remove_wa_group_participant",
 		label: "Remove Group Participant",
-		description:
-			"Remove one or more participants from a WhatsApp group.",
+		description: "Remove one or more participants from a WhatsApp group.",
 		promptSnippet:
 			"remove_wa_group_participant(groupJid, participantJids) - Remove participants from a group.",
 		parameters: Type.Object({
@@ -706,13 +734,13 @@ export default function (pi: ExtensionAPI) {
 			}),
 			participantJids: Type.Array(
 				Type.String({ description: "Phone number or JID of participant" }),
-				{ description: "List of participants to remove" }
+				{ description: "List of participants to remove" },
 			),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const result = await whatsappService.removeGroupParticipants(
 				params.groupJid,
-				params.participantJids
+				params.participantJids,
 			);
 
 			return {
@@ -987,7 +1015,9 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Only auto-reply if recipient is in updateList (allowed proactive target)
-			const isUpdateTarget = outboundJid && await sessionManager.isAllowedUpdateTarget(outboundJid);
+			const isUpdateTarget =
+				outboundJid &&
+				(await sessionManager.isAllowedUpdateTarget(outboundJid));
 
 			if (!isUpdateTarget) {
 				return; // Don't auto-reply to contacts not in updateList
