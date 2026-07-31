@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { t } from '../i18n.js';
+import { WhatsAppPiLogger } from './whatsapp-pi.logger.js';
 
 const execAsync = promisify(exec);
 
@@ -14,7 +15,7 @@ export class AudioService {
   private readonly transcribeScript = join(homedir(), '.pi', 'agent', 'voice-transcription', 'transcribe.sh');
   private readonly useSherpaOnnx = existsSync(join(homedir(), '.pi', 'agent', 'voice-transcription', 'transcribe.sh'));
 
-  constructor() {
+  constructor(private logger?: WhatsAppPiLogger) {
     if (!existsSync(this.mediaDir)) {
       mkdir(this.mediaDir, { recursive: true }).catch(() => {});
     }
@@ -64,7 +65,7 @@ export class AudioService {
       // Si rien, retourner vide
       return t('audio.emptyTranscription');
     } catch (error) {
-      console.error(t('audio.transcriptionError'), error);
+      this.logger?.error(t('audio.transcriptionError'), error);
       return t('audio.transcriptionErrorResult', { error: error instanceof Error ? error.message : String(error) });
     }
   }

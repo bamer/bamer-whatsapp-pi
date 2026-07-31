@@ -1,4 +1,5 @@
 import { WhatsAppService } from './whatsapp.service.js';
+import { WhatsAppPiLogger } from './whatsapp-pi.logger.js';
 import { MessageRequest, MessageResult, WhatsAppError } from '../models/whatsapp.types.js';
 import { t } from '../i18n.js';
 import { appendFileSync } from 'fs';
@@ -13,9 +14,11 @@ function fileLog(msg: string) {
 
 export class MessageSender {
     private whatsappService: WhatsAppService;
+    private logger?: WhatsAppPiLogger;
 
     constructor(whatsappService: WhatsAppService) {
         this.whatsappService = whatsappService;
+        this.logger = whatsappService.getLogger();
     }
 
     /**
@@ -103,7 +106,7 @@ export class MessageSender {
                     const delay = Math.pow(2, attempts) * backoff;
 
                     if (this.whatsappService.isVerbose()) {
-                        console.log(t('message.sender.retrying', { backoff: delay }));
+                        this.logger?.info(t('message.sender.retrying', { backoff: delay }));
                     }
                     await this.sleep(delay);
                 }

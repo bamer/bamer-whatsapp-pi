@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] - 2025-07-31
+
+### Added
+- **Logger refactoring**: All extension logging now goes through `WhatsAppPiLogger` with configurable file rotation
+- **MessageSender logging**: Uses logger instead of console (via WhatsAppService.getLogger())
+- **AudioService logging**: Uses logger instead of direct file writes (logger injected at startup)
+- **stderr-only logging**: All `console.error` calls in logger, stdout kept clean for `pi spawn`/`pi run`
+- **Live config updates**: Logger settings (max size, retention) can be changed at runtime via settings menu
+
+### Changed
+- **Logger constructor**: Accepts max size (MB) and retention (days) from config (defaults: 5MB, 7d)
+- **Log rotation**: New file at configured size (0=disabled, max 20MB)
+- **Log cleanup**: Removes files older than retention (0=disabled, max 365d), max 10 files
+- **Log format**: `[ISO-timestamp] [LEVEL] message args...` in timestamped files `whatsapp-pi-<timestamp>.log`
+- **Logger methods**: `info()`, `log()`, `warn()`, `error()` all use `console.error` (stderr)
+
+### Fixed
+- **stdout pollution**: Server reading stdout from `pi spawn` no longer receives WhatsApp-Pi logs
+- **MessageSender**: Replaced `console.error`/`console.log` with logger
+- **AudioService**: Replaced direct file writes with injected logger
+- **Logger import**: Fixed missing imports in services
+
 ## [1.2.0] - 2025-07-31
 
 ### Added
