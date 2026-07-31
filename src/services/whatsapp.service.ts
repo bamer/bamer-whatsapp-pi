@@ -599,12 +599,13 @@ export class WhatsAppService {
         fileLog(`[DEBUG] Message from remoteJid=${remoteJid}, fromMe=${message.key.fromMe}`);
 
         // Skip messages sent by the operator to OTHER contacts.
-        // Allow fromMe when the operator sends to their own JID ("Message Yourself").
+        // Allow fromMe when remoteJid is in allowList or updateList (linked devices / LID).
         if (message.key.fromMe) {
-            const operatorJid = this.sessionManager.getOperatorJid();
-            const isSelfMessage = remoteJid === operatorJid || remoteJid === this.normalizeContactNumber(operatorJid?.split('@')[0] ?? '');
-            fileLog(`[DEBUG] fromMe message: operatorJid=${operatorJid}, isSelfMessage=${isSelfMessage}`);
-            if (!isSelfMessage) return;
+            const senderNumber = this.normalizeContactNumber(remoteJid.split('@')[0]);
+            const isAllowed = this.sessionManager.isConversationAllowed(senderNumber);
+            const isUpdateTarget = this.sessionManager.isAllowedUpdateTarget(senderNumber);
+            fileLog(`[DEBUG] fromMe: remoteJid=${remoteJid}, senderNumber=${senderNumber}, isAllowed=${isAllowed}, isUpdateTarget=${isUpdateTarget}`);
+            if (!isAllowed && !isUpdateTarget) return;
         }
 
         const text = this.extractText(message.message);
