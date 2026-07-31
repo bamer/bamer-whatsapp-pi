@@ -698,7 +698,7 @@ export class WhatsAppService {
             recipientJid,
             text: text,
             options: {
-                useCachedGroupMetadata: !isGroup  // false for groups to force fresh sender keys
+                useCachedGroupMetadata: true
             }
         });
 
@@ -726,12 +726,7 @@ export class WhatsAppService {
 
         const isGroup = SessionManager.isGroupJid(normalizedJid);
 
-        // For groups: disable cached group metadata to force fresh sender key distribution
-        // This avoids "Cannot create property 'senderMessageKeys' on number" error
-        const messageOptions: any = { text };
-        if (isGroup) {
-            messageOptions.useCachedGroupMetadata = false;
-        }
+const messageOptions: any = { text };
 
         try {
             await this.sendPresence(normalizedJid, 'composing');

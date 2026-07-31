@@ -88,11 +88,9 @@ export class MessageSender {
                 // Note: Branding π is applied here to ensure consistency
                 const text = this.whatsappService.getBrandVisibility() ? `${request.text} π` : request.text;
                 const messageOptions: any = { text };
-                // Use cached group metadata setting from request options (default true for contacts, false for groups)
+                // Forward useCachedGroupMetadata if provided in options
                 if (request.options?.useCachedGroupMetadata !== undefined) {
                     messageOptions.useCachedGroupMetadata = request.options.useCachedGroupMetadata;
-                } else if (isGroup) {
-                    messageOptions.useCachedGroupMetadata = false;
                 }
                 const response = await socket.sendMessage(request.recipientJid, messageOptions);
 
