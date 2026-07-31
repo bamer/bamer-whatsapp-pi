@@ -282,6 +282,7 @@ const fallback = {
     "baileys.filter.badMac": "Bad MAC",
     "baileys.filter.closingOpenSession": "Closing open session in favor of incoming prekey bundle",
     "baileys.filter.closingSession": "Closing session:",
+    "baileys.filter.removingOldSession": "Removing old closed session",
 } as const;
 
 const translations: Record<Locale, Partial<Record<Key, string>>> = {

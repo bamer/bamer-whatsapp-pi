@@ -7,7 +7,8 @@ const noisyBaileysPatterns = [
     t('baileys.filter.sessionError'),
     t('baileys.filter.badMac'),
     t('baileys.filter.closingOpenSession'),
-    t('baileys.filter.closingSession')
+    t('baileys.filter.closingSession'),
+    t('baileys.filter.removingOldSession')
 ];
 
 const stringifyConsolePart = (part: unknown): string => {
