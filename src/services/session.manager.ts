@@ -27,6 +27,21 @@ export class SessionManager {
         return jid.endsWith('@g.us');
     }
 
+    public static cleanContact(item: any): Contact | null {
+        if (typeof item === 'string') return { number: item };
+        if (item && typeof item === 'object') {
+            let num = item.number;
+            while (num && typeof num === 'object' && num.number) {
+                num = num.number;
+            }
+            if (typeof num === 'string') {
+                const sendNumber = typeof item.sendNumber === 'string' ? item.sendNumber : undefined;
+                return { number: num, name: item.name, sendNumber };
+            }
+        }
+        return null;
+    }
+
     /**
      * Sets a group-specific auth directory so each agent bound to a group
      * registers as its own WhatsApp linked device.
@@ -95,29 +110,15 @@ export class SessionManager {
             const data = await readFile(this.configPath, 'utf-8');
             const { config, recovered } = this.parseConfig(data);
             
-            const cleanContact = (item: any): Contact | null => {
-                if (typeof item === 'string') return { number: item };
-                if (item && typeof item === 'object') {
-                    let num = item.number;
-                    // Unroll nested objects if any
-                    while (num && typeof num === 'object' && num.number) {
-                        num = num.number;
-                    }
-                    if (typeof num === 'string') {
-                        const sendNumber = typeof item.sendNumber === 'string' ? item.sendNumber : undefined;
-                        return { number: num, name: item.name, sendNumber };
-                    }
-                }
-                return null;
-            };
 
-            const loadedAllowList = (config.allowList || []).map(cleanContact).filter(Boolean) as Contact[];
-            const loadedAllowedGroups = (config.allowedGroups || []).map(cleanContact).filter(Boolean) as Contact[];
+
+            const loadedAllowList = (config.allowList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            const loadedAllowedGroups = (config.allowedGroups || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
             const migratedGroups = loadedAllowList.filter(c => SessionManager.isGroupJid(c.number));
             this.allowList = loadedAllowList.filter(c => !SessionManager.isGroupJid(c.number));
             this.allowedGroups = this.mergeContacts(loadedAllowedGroups, migratedGroups);
-            this.ignoredNumbers = (config.ignoredNumbers || []).map(cleanContact).filter(Boolean) as Contact[];
-            this.updateList = (config.updateList || []).map(cleanContact).filter(Boolean) as Contact[];
+            this.ignoredNumbers = (config.ignoredNumbers || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            this.updateList = (config.updateList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
             this.status = config.status || 'logged-out';
             this.hasAuthState = Boolean(config.hasAuthState);
             this.brandVisibility = config.brandVisibility !== false;
@@ -477,7 +478,21 @@ export class SessionManager {
         return this.updateList;
     }
 
-    isAllowedUpdateTarget(jid: string): boolean {
+    /** Reload updateList from config file to pick up external changes. */
+    private async reloadUpdateList(): Promise<void> {
+        try {
+            const data = await readFile(this.configPath, 'utf-8');
+            const config = JSON.parse(data);
+            this.updateList = (config.updateList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+        } catch {
+            // Ignore reload errors, keep existing list
+        }
+    }
+
+    async isAllowedUpdateTarget(jid: string): Promise<boolean> {
+        // Reload updateList from config to pick up external changes
+        // (e.g., config modified externally while extension running)
+        await this.reloadUpdateList();
         const number = jid.split('@')[0];
         return this.updateList.some(c => c.number === number || c.number === jid);
     }

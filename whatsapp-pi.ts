@@ -462,7 +462,7 @@ export default function (pi: ExtensionAPI) {
 				const updateList = sessionManager.getUpdateList();
 				if (
 					updateList.length > 0 &&
-					!sessionManager.isAllowedUpdateTarget(resolvedJid)
+					!(await sessionManager.isAllowedUpdateTarget(resolvedJid))
 				) {
 					return {
 						isError: true,
@@ -872,7 +872,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Only auto-reply if recipient is in updateList (allowed proactive target)
-			const isUpdateTarget = outboundJid && sessionManager.isAllowedUpdateTarget(outboundJid);
+			const isUpdateTarget = outboundJid && await sessionManager.isAllowedUpdateTarget(outboundJid);
 
 			if (!isUpdateTarget) {
 				return; // Don't auto-reply to contacts not in updateList

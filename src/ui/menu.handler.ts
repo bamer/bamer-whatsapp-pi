@@ -808,7 +808,7 @@ export class MenuHandler {
 
 		if (choice === addToUpdateListLabel) {
 			if (
-				this.sessionManager.isAllowedUpdateTarget(conversation.senderNumber)
+				await this.sessionManager.isAllowedUpdateTarget(conversation.senderNumber)
 			) {
 				ctx.ui.notify(
 					t("menu.recents.alreadyInUpdateList", {
