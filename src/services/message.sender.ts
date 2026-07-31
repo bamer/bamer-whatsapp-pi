@@ -77,7 +77,14 @@ export class MessageSender {
                 // 4. Send the message
                 // Note: Branding π is applied here to ensure consistency
                 const text = this.whatsappService.getBrandVisibility() ? `${request.text} π` : request.text;
-                const response = await socket.sendMessage(request.recipientJid, { text });
+                const messageOptions: any = { text };
+                // Use cached group metadata setting from request options (default true for contacts, false for groups)
+                if (request.options?.useCachedGroupMetadata !== undefined) {
+                    messageOptions.useCachedGroupMetadata = request.options.useCachedGroupMetadata;
+                } else if (isGroup) {
+                    messageOptions.useCachedGroupMetadata = false;
+                }
+                const response = await socket.sendMessage(request.recipientJid, messageOptions);
 
                 fileLog(`SUCCESS sending to ${request.recipientJid} on attempt ${attempts}`);
                 return {

@@ -24,6 +24,7 @@ export interface MessageRequest {
     options?: {
         maxRetries?: number;
         priority?: 'high' | 'normal';
+        useCachedGroupMetadata?: boolean;
     };
 }
 

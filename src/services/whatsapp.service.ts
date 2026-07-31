@@ -689,13 +689,17 @@ export class WhatsAppService {
 
     async sendMessage(jid: string, text: string) {
         const recipientJid = this.resolveOutboundRecipientJid(jid);
+        const isGroup = SessionManager.isGroupJid(recipientJid);
 
         // Ensure we show the typing indicator before sending
         await this.sendPresence(recipientJid, 'composing');
 
         const result = await this.messageSender.send({
             recipientJid,
-            text: text
+            text: text,
+            options: {
+                useCachedGroupMetadata: !isGroup  // false for groups to force fresh sender keys
+            }
         });
 
         // After sending, we can stop the typing indicator
@@ -720,19 +724,18 @@ export class WhatsAppService {
             };
         }
 
-        // Force refresh group metadata for groups before sending
-        if (SessionManager.isGroupJid(normalizedJid)) {
-            try {
-                // Force refresh by calling groupMetadata directly (bypasses cache)
-                await socket.groupMetadata(normalizedJid);
-            } catch {
-                // Ignore metadata refresh errors
-            }
+        const isGroup = SessionManager.isGroupJid(normalizedJid);
+
+        // For groups: disable cached group metadata to force fresh sender key distribution
+        // This avoids "Cannot create property 'senderMessageKeys' on number" error
+        const messageOptions: any = { text };
+        if (isGroup) {
+            messageOptions.useCachedGroupMetadata = false;
         }
 
         try {
             await this.sendPresence(normalizedJid, 'composing');
-            const response = await socket.sendMessage(normalizedJid, { text });
+            const response = await socket.sendMessage(normalizedJid, messageOptions);
             await this.sendPresence(normalizedJid, 'paused');
 
             return {
