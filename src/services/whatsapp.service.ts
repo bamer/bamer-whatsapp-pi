@@ -4,6 +4,7 @@ import {
     makeCacheableSignalKeyStore,
     makeWASocket
 } from 'baileys';
+import { ContactsService } from './contacts.service.js';
 import { appendFileSync } from 'fs';
 import P from 'pino';
 import { t } from '../i18n.js';
@@ -76,12 +77,27 @@ interface MessagesUpsertEvent {
     messages?: IncomingMessageLike[];
 }
 
+/** Baileys v7 Contact type — see https://github.com/whiskeysockets/baileys/blob/master/src/Types/Contact.ts */
+interface BaileysContact {
+	id: string;
+	lid?: string;
+	phoneNumber?: string;
+	name?: string;
+	notify?: string;
+	username?: string;
+	verifiedName?: string;
+	imgUrl?: string | null;
+	status?: string;
+}
+
 interface WhatsAppSocketLike {
     user?: { id?: string; lid?: string };
     ev: {
         on(event: 'connection.update', handler: (update: ConnectionUpdateEvent) => void | Promise<void>): void;
         on(event: 'creds.update', handler: () => void | Promise<void>): void;
         on(event: 'messages.upsert', handler: (payload: MessagesUpsertEvent) => void | Promise<void>): void;
+        on(event: 'contacts.upsert', handler: (contacts: BaileysContact[]) => void | Promise<void>): void;
+        on(event: 'contacts.update', handler: (contacts: Partial<BaileysContact>[]) => void | Promise<void>): void;
         removeAllListeners(event: 'connection.update' | 'creds.update' | 'messages.upsert'): void;
     };
     end(reason?: unknown): void;
@@ -92,6 +108,7 @@ interface WhatsAppSocketLike {
     groupMetadata(jid: string): Promise<{ id: string; subject: string; participants: Array<{ id: string }> }>;
     groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string }> }>>;
     groupParticipantsUpdate(jid: string, participants: string[], action: 'add' | 'remove' | 'demote' | 'promote'): Promise<any>;
+    profilePictureUrl(jid: string, type?: 'preview' | 'image'): Promise<string | undefined>;
 }
 
 interface LastDisconnectLike {
@@ -128,10 +145,13 @@ export class WhatsAppService {
     private qrWasShown = false;
     private boundGroupJid: string | null = null;
     private groupMetadataCache: Map<string, { data: { id: string; subject: string; participants: Array<{ id: string }> }; timestamp: number }> = new Map();
+    private contactsService: ContactsService;
 
     constructor(sessionManager: SessionManager) {
         this.sessionManager = sessionManager;
         this.messageSender = new MessageSender(this);
+        this.contactsService = new ContactsService(createStoragePaths().contactsPath);
+        void this.contactsService.load();
     }
 
     setLogger(logger: WhatsAppPiLogger) {
@@ -173,6 +193,10 @@ export class WhatsAppService {
 
     public getSocket(): WhatsAppSocketLike | undefined {
         return this.socket;
+    }
+
+    public getContactsService(): ContactsService {
+        return this.contactsService;
     }
 
     public isVerbose(): boolean {
@@ -335,6 +359,7 @@ export class WhatsAppService {
             await this.handleConnectionUpdate(update, options);
         });
 
+        this.contactsService.attach(socket);
         socket.ev.on('messages.upsert', (payload) => {
             void this.handleIncomingMessages(payload);
         });

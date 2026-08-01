@@ -8,6 +8,7 @@ import {
 } from "../models/whatsapp.types.js";
 import { RecentsService } from "../services/recents.service.js";
 import { SessionManager, type Contact } from "../services/session.manager.js";
+import { type SyncedContact } from "../services/contacts.service.js";
 import { WhatsAppService } from "../services/whatsapp.service.js";
 import { showMessageDetailView } from "./message-detail.view.js";
 import { showMessageReplyView } from "./message-reply.view.js";
@@ -50,6 +51,7 @@ export class MenuHandler {
 
 		if (status === "connected") {
 			options.push(recentsLabel);
+			options.push(t("menu.root.contactsList"));
 			options.push(allowedContactsLabel);
 			options.push(allowedGroupsLabel);
 			options.push(updateTargetsLabel);
@@ -111,6 +113,9 @@ export class MenuHandler {
 				break;
 			case updateTargetsLabel:
 				await this.manageUpdateList(ctx);
+				break;
+			case t("menu.root.contactsList"):
+				await this.manageContactsList(ctx);
 				break;
 			case recentsLabel:
 				await this.manageRecents(ctx);
@@ -597,6 +602,96 @@ export class MenuHandler {
 		return contact.name ?
 				`${contact.name} [${contact.number}]`
 			:	contact.number;
+	}
+
+	private async manageContactsList(ctx: ExtensionCommandContext) {
+		const contactsService = this.whatsappService.getContactsService();
+		const contacts = contactsService.getAllContacts();
+
+		if (contacts.length === 0) {
+			ctx.ui.notify(t("menu.contacts.empty"), "info");
+			await this.handleCommand(ctx);
+			return;
+		}
+
+		const title = t("menu.contacts.title", { count: contacts.length });
+		const backLabel = t("menu.root.back");
+		const nextLabel = "Next";
+		const previousLabel = "Previous";
+		const pageSize = 20;
+
+		for (let page = 0; page * pageSize < contacts.length; ) {
+			const start = page * pageSize;
+			const pageContacts = contacts.slice(start, start + pageSize);
+			const options = [
+				...pageContacts.map((c) => this.formatContactOption(c)),
+				...(page > 0 ? [previousLabel] : []),
+				...(start + pageSize < contacts.length ? [nextLabel] : []),
+				backLabel,
+			];
+
+			const choice = await ctx.ui.select(title, options);
+			if (!choice || choice === backLabel) {
+				await this.handleCommand(ctx);
+				return;
+			}
+
+			if (choice === nextLabel) { page += 1; continue; }
+			if (choice === previousLabel) { page = Math.max(0, page - 1); continue; }
+
+			const selected = pageContacts.find((c) => this.formatContactOption(c) === choice);
+			if (!selected) { return; }
+
+			await this.manageContactDetail(ctx, selected);
+			return;
+		}
+	}
+
+	private async manageContactDetail(ctx: ExtensionCommandContext, contact: SyncedContact) {
+		const displayName = contact.name || contact.notify || contact.id;
+		const title = t("menu.contacts.contact.title", { displayName });
+		const backLabel = t("menu.root.back");
+		const fetchPhotoLabel = t("menu.contacts.contact.fetchPhoto");
+
+		// Print details to console
+		const lines: string[] = [];
+		if (contact.name) lines.push(t("menu.contacts.contact.name", { name: contact.name }));
+		if (contact.phoneNumber) lines.push(t("menu.contacts.contact.phone", { phone: contact.phoneNumber }));
+		if (contact.lid) lines.push(t("menu.contacts.contact.lid", { lid: contact.lid }));
+		if (contact.status) lines.push(t("menu.contacts.contact.status", { status: contact.status }));
+		lines.push(`ID: ${contact.id}`);
+		console.log([title, ...lines].join("\n"));
+
+		const options = [fetchPhotoLabel, backLabel];
+		const choice = await ctx.ui.select(title, options);
+
+		if (choice === fetchPhotoLabel) {
+			const socket = this.whatsappService.getSocket();
+			if (socket?.profilePictureUrl) {
+				try {
+					const url = await socket.profilePictureUrl(contact.id, "image");
+					if (url) {
+						console.log(t("menu.contacts.contact.photoUrl", { url }));
+						ctx.ui.notify(url, "info");
+					} else {
+						ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
+					}
+				} catch {
+					ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
+				}
+			} else {
+				ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
+			}
+			await this.manageContactDetail(ctx, contact);
+			return;
+		}
+
+		await this.manageContactsList(ctx);
+	}
+
+	private formatContactOption(contact: SyncedContact): string {
+		const name = contact.name || contact.notify || contact.phoneNumber || contact.id;
+		return `${name} (${contact.id})`;
 	}
 
 	private async manageSettings(ctx: ExtensionCommandContext) {

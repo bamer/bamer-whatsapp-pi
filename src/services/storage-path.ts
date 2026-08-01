@@ -21,6 +21,7 @@ export interface StoragePaths {
     logDir: string;
     logPath: string;
     mediaDir: string;
+    contactsPath: string;
 }
 
 export function createStoragePaths(root = getDefaultStorageRoot(), legacyRoot = getDefaultLegacyStorageRoot()): StoragePaths {
@@ -33,7 +34,8 @@ export function createStoragePaths(root = getDefaultStorageRoot(), legacyRoot = 
         recentsPath: join(root, 'recents', 'recents.json'),
         logDir: root,
         logPath: join(root, 'whatsapp-pi.log'),
-        mediaDir: join(root, 'whatsapp-medias')
+        mediaDir: join(root, 'whatsapp-medias'),
+        contactsPath: join(root, 'contacts.json')
     };
 }
 

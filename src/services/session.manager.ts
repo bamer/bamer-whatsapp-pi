@@ -18,6 +18,18 @@ export interface Contact {
     sendNumber?: string;
 }
 
+export interface WhatsAppContact {
+    id: string;
+    lid?: string;
+    phoneNumber?: string;
+    name?: string;
+    notify?: string;
+    username?: string;
+    verifiedName?: string;
+    imgUrl?: string | null;
+    status?: string;
+}
+
 export class SessionManager {
     private readonly storagePaths: StoragePaths;
     private authStateDir: string;
@@ -56,6 +68,7 @@ export class SessionManager {
     private allowedGroups: Contact[] = [];
     private ignoredNumbers: Contact[] = [];
     private updateList: Contact[] = [];
+    private whatsappContacts: WhatsAppContact[] = [];
     private autoConnect = false;
     private assistantName = 'Agent Pi';
     private agentSignature = 'π';
@@ -119,6 +132,7 @@ export class SessionManager {
             this.allowedGroups = this.mergeContacts(loadedAllowedGroups, migratedGroups);
             this.ignoredNumbers = (config.ignoredNumbers || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
             this.updateList = (config.updateList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            this.whatsappContacts = (config.whatsappContacts || []).map((c: any) => c) as WhatsAppContact[];
             // Validate and deduplicate all contact lists
             const warnings = this.validateAndDeduplicateContacts();
             if (warnings.length > 0) {
