@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.1] - 2025-08-01
+
+### Fixed
+- **Personal contacts now detected**: `contacts.upsert`/`update` events upgrade a contact's source to `addressbook` when a `name` or `notify` field is present — group participants only have `id`+`phoneNumber`, so named contacts are correctly classified as personal
+- **`messaging-history.set` handler**: Fixed `existing` type cast (was `{}` → now `SyncedContact | undefined`)
+
+### Added
+- **"Re-classify contacts" settings option**: Scans all contacts and upgrades any with a `name`/`notify` to `addressbook` (personal). Useful after `fetchContactsFromGroups` populated everything as `group`.
+- **`ContactsService.reclassifyContacts()`**: Returns `{ upgraded, total }` count
+
+### Note
+- For linked devices, WhatsApp does NOT sync the phone's address book via `messaging-history.set`. Personal contacts are detected by the presence of a `name`/`notify` field in `contacts.upsert`/`update` events (which fire for contacts the bot interacts with).
+
 ## [1.9.0] - 2025-08-01
 
 ### Added

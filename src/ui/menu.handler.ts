@@ -753,6 +753,7 @@ export class MenuHandler {
 			logMaxSizeLabel,
 			logRetentionLabel,
 			t("menu.settings.fetchContacts"),
+			t("menu.settings.reclassifyContacts"),
 			backLabel,
 		];
 
@@ -814,6 +815,16 @@ export class MenuHandler {
 			} catch (err) {
 				ctx.ui.notify(t("menu.settings.fetchContactsError", { error: String(err) }), "error");
 			}
+			await this.manageSettings(ctx);
+			return;
+		}
+
+		if (choice === t("menu.settings.reclassifyContacts")) {
+			const result = this.whatsappService.getContactsService().reclassifyContacts();
+			ctx.ui.notify(
+				t("menu.settings.reclassifyResult", { upgraded: result.upgraded, total: result.total }),
+				"info",
+			);
 			await this.manageSettings(ctx);
 			return;
 		}

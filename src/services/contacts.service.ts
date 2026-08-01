@@ -35,7 +35,8 @@ export class ContactsService {
 			for (const c of contacts) {
 				if (!c?.id) continue;
 				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: existing?.source || 'addressbook' });
+				const hasName = !!(c.name || c.notify);
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: hasName ? 'addressbook' : (existing?.source || 'addressbook') });
 			}
 			fileLog(`[Contacts] upsert: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -46,8 +47,8 @@ export class ContactsService {
 			if (!contacts?.length) return;
 			for (const c of contacts) {
 				if (!c?.id) continue;
-				const existing = this.contacts.get(c.id) ?? {};
-				this.contacts.set(c.id, { ...existing, ...c, source: 'addressbook' });
+				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: 'addressbook' });
 			}
 			fileLog(`[Contacts] messaging-history.set: ${contacts.length} personal contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -57,7 +58,8 @@ export class ContactsService {
 			for (const c of contacts) {
 				if (!c?.id) continue;
 				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: existing?.source || 'addressbook' });
+				const hasName = !!(c.name || c.notify);
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: hasName ? 'addressbook' : (existing?.source || 'addressbook') });
 			}
 			fileLog(`[Contacts] update: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -107,6 +109,20 @@ export class ContactsService {
 			if (c.source === source) count++;
 		}
 		return count;
+	}
+
+	/** Re-classify: upgrade contacts with a name/notify to 'addressbook' (personal). */
+	reclassifyContacts(): { upgraded: number; total: number } {
+		let upgraded = 0;
+		for (const [id, c] of this.contacts) {
+			if ((c.name || c.notify) && c.source !== 'addressbook') {
+				this.contacts.set(id, { ...c, source: 'addressbook' });
+				upgraded++;
+			}
+		}
+		fileLog(`[Contacts] reclassified ${upgraded} contacts to addressbook (total: ${this.contacts.size})`);
+		this.scheduleSave();
+		return { upgraded, total: this.contacts.size };
 	}
 
 	/** Fetch all contacts from group participants via groupFetchAllParticipating. */
