@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0] - 2025-08-01
+
+### Added
+- **Contact List menu**: New menu entry that syncs WhatsApp contacts in the background via `contacts.upsert`/`contacts.update` events, stores them in `contacts.json`, and fetches profile photos on demand via `sock.profilePictureUrl(jid, 'image')`
+- **ContactsService**: New service that listens to contact events, stores contacts in a separate JSON file (debounced save every 2s), and exposes `getAllContacts`/`getContact`/`getProfilePictureUrl`
+- **Contact detail view**: Paginated list (20/page) with per-contact details (name, phone, LID, status, ID) and a "Fetch profile photo" button
+- **i18n**: EN/FR/PT/ES translations for all new Contact List strings
+
+### Changed
+- **WhatsAppSocketLike**: Extended with `profilePictureUrl` method and `contacts.upsert`/`contacts.update` event handlers
+- **StoragePaths**: Added `contactsPath` for the new `contacts.json` file
+
 ## [1.6.0] - 2025-08-01
 
 ### Changed
