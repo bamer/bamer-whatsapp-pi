@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0] - 2025-08-01
+
+### Added
+- **Contact source separation**: Contacts are now tagged as `addressbook` (personal) or `group` (group participants), with a filter menu (Personal / Group participants / All) in the Contact List
+- **Searchable contact list**: Type to fuzzy-filter contacts in real-time (arrows to navigate, Enter to select, Esc to cancel) — built with `ctx.ui.custom()` + `SelectList.setFilter()` + `Input`
+- **`messaging-history.set` event listener**: Syncs the personal address book contacts on connection (not just group participants), tagged as `source: 'addressbook'`
+- **`getContactsBySource()` / `getCountBySource()`**: New `ContactsService` methods for filtering by source
+
+### Changed
+- Contact List now opens with a filter selection (Personal / Group / All) before showing the searchable list
+- `fetchContactsFromGroups` tags contacts with `source: 'group'` instead of mixing them with personal contacts
+
 ## [1.8.0] - 2025-08-01
 
 ### Added

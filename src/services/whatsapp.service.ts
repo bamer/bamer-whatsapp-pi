@@ -98,6 +98,7 @@ interface WhatsAppSocketLike {
         on(event: 'messages.upsert', handler: (payload: MessagesUpsertEvent) => void | Promise<void>): void;
         on(event: 'contacts.upsert', handler: (contacts: BaileysContact[]) => void | Promise<void>): void;
         on(event: 'contacts.update', handler: (contacts: Partial<BaileysContact>[]) => void | Promise<void>): void;
+on(event: 'messaging-history.set', handler: (event: { contacts?: BaileysContact[]; messages?: unknown[]; chats?: unknown[]; isLatest?: boolean }) => void | Promise<void>): void;
         removeAllListeners(event: 'connection.update' | 'creds.update' | 'messages.upsert'): void;
     };
     end(reason?: unknown): void;

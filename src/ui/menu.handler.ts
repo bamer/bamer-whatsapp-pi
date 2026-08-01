@@ -9,6 +9,7 @@ import {
 import { RecentsService } from "../services/recents.service.js";
 import { SessionManager, type Contact } from "../services/session.manager.js";
 import { type SyncedContact } from "../services/contacts.service.js";
+import { SearchableContactList } from "./searchable-list.js";
 import { WhatsAppService } from "../services/whatsapp.service.js";
 import { fileLog } from "../services/storage-path.js";
 import { showMessageDetailView } from "./message-detail.view.js";
@@ -607,46 +608,73 @@ export class MenuHandler {
 
 	private async manageContactsList(ctx: ExtensionCommandContext) {
 		const contactsService = this.whatsappService.getContactsService();
-		fileLog(`[Menu] manageContactsList called, contacts count: ${contactsService.getCount()}`);
-		const contacts = contactsService.getAllContacts();
+		const totalCount = contactsService.getCount();
+		const personalCount = contactsService.getCountBySource("addressbook");
+		const groupCount = contactsService.getCountBySource("group");
+		fileLog(`[Menu] manageContactsList: total=${totalCount} personal=${personalCount} group=${groupCount}`);
 
-		if (contacts.length === 0) {
+		if (totalCount === 0) {
 			ctx.ui.notify(t("menu.contacts.empty"), "info");
 			await this.handleCommand(ctx);
 			return;
 		}
 
-		const title = t("menu.contacts.title", { count: contacts.length });
-		const backLabel = t("menu.root.back");
-		const nextLabel = "Next";
-		const previousLabel = "Previous";
-		const pageSize = 20;
-
-		for (let page = 0; page * pageSize < contacts.length; ) {
-			const start = page * pageSize;
-			const pageContacts = contacts.slice(start, start + pageSize);
-			const options = [
-				...pageContacts.map((c) => this.formatContactOption(c)),
-				...(page > 0 ? [previousLabel] : []),
-				...(start + pageSize < contacts.length ? [nextLabel] : []),
-				backLabel,
-			];
-
-			const choice = await ctx.ui.select(title, options);
-			fileLog(`[Menu] contacts select choice: ${choice}`);
-			if (!choice || choice === backLabel) {
-				await this.handleCommand(ctx);
-				return;
-			}
-
-			if (choice === nextLabel) { page += 1; continue; }
-			if (choice === previousLabel) { page = Math.max(0, page - 1); continue; }
-
-			const selected = pageContacts.find((c) => this.formatContactOption(c) === choice);
-			if (!selected) { return; }
-
-			await this.manageContactDetail(ctx, selected);
+		// Step 1: choose filter
+		const filterTitle = t("menu.contacts.filterTitle");
+		const filterOptions = [
+			t("menu.contacts.filterPersonal", { count: personalCount }),
+			t("menu.contacts.filterGroup", { count: groupCount }),
+			t("menu.contacts.filterAll", { count: totalCount }),
+			t("menu.root.back"),
+		];
+		const filterChoice = await ctx.ui.select(filterTitle, filterOptions);
+		fileLog(`[Menu] contacts filter choice: ${filterChoice}`);
+		if (!filterChoice || filterChoice === t("menu.root.back")) {
+			await this.handleCommand(ctx);
 			return;
+		}
+
+		// Step 2: filter contacts by source
+		let contacts: SyncedContact[];
+		if (filterChoice.startsWith(t("menu.contacts.filterPersonal", { count: personalCount }).split(" (")[0])) {
+			contacts = contactsService.getContactsBySource("addressbook");
+		} else if (filterChoice.startsWith(t("menu.contacts.filterGroup", { count: groupCount }).split(" (")[0])) {
+			contacts = contactsService.getContactsBySource("group");
+		} else {
+			contacts = contactsService.getAllContacts();
+		}
+
+		if (contacts.length === 0) {
+			ctx.ui.notify(t("menu.contacts.empty"), "info");
+			await this.manageContactsList(ctx);
+			return;
+		}
+
+		// Step 3: searchable list via ctx.ui.custom()
+		const items = contacts.map((c) => ({
+			value: c.id,
+			label: c.name || c.notify || c.phoneNumber || c.id,
+			description: c.id,
+		}));
+
+		const selectedJid = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
+			const list = new SearchableContactList(items, theme);
+			list.onSelect = (item) => done(item.value);
+			list.onCancel = () => done(null);
+			return list;
+		});
+
+		fileLog(`[Menu] searchable list selected: ${selectedJid}`);
+		if (!selectedJid) {
+			await this.manageContactsList(ctx);
+			return;
+		}
+
+		const selected = contacts.find((c) => c.id === selectedJid);
+		if (selected) {
+			await this.manageContactDetail(ctx, selected);
+		} else {
+			await this.manageContactsList(ctx);
 		}
 	}
 

@@ -10,6 +10,7 @@ export interface SyncedContact {
 	notify?: string;
 	status?: string;
 	imgUrl?: string | null;
+	source?: 'addressbook' | 'group';
 }
 
 export class ContactsService {
@@ -25,6 +26,7 @@ export class ContactsService {
 			ev: {
 				on(event: 'contacts.upsert', handler: (contacts: any[]) => void | Promise<void>): void;
 				on(event: 'contacts.update', handler: (contacts: any[]) => void | Promise<void>): void;
+				on(event: 'messaging-history.set', handler: (event: any) => void | Promise<void>): void;
 			};
 			profilePictureUrl?(jid: string, type?: 'preview' | 'image'): Promise<string | undefined>;
 		},
@@ -32,18 +34,30 @@ export class ContactsService {
 		socket.ev.on('contacts.upsert', (contacts) => {
 			for (const c of contacts) {
 				if (!c?.id) continue;
-				const existing = this.contacts.get(c.id) ?? {};
-				this.contacts.set(c.id, { ...existing, ...c });
+				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: existing?.source || 'addressbook' });
 			}
 			fileLog(`[Contacts] upsert: ${contacts.length} contacts (total: ${this.contacts.size})`);
+			this.scheduleSave();
+		});
+
+		socket.ev.on('messaging-history.set', (event) => {
+			const contacts = event?.contacts as any[] | undefined;
+			if (!contacts?.length) return;
+			for (const c of contacts) {
+				if (!c?.id) continue;
+				const existing = this.contacts.get(c.id) ?? {};
+				this.contacts.set(c.id, { ...existing, ...c, source: 'addressbook' });
+			}
+			fileLog(`[Contacts] messaging-history.set: ${contacts.length} personal contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
 		});
 
 		socket.ev.on('contacts.update', (contacts) => {
 			for (const c of contacts) {
 				if (!c?.id) continue;
-				const existing = this.contacts.get(c.id) ?? {};
-				this.contacts.set(c.id, { ...existing, ...c });
+				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: existing?.source || 'addressbook' });
 			}
 			fileLog(`[Contacts] update: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -81,6 +95,20 @@ export class ContactsService {
 		return this.contacts.size;
 	}
 
+	/** Get contacts filtered by source, sorted by name. */
+	getContactsBySource(source: 'addressbook' | 'group'): SyncedContact[] {
+		return this.getAllContacts().filter((c) => c.source === source);
+	}
+
+	/** Get count by source. */
+	getCountBySource(source: 'addressbook' | 'group'): number {
+		let count = 0;
+		for (const c of this.contacts.values()) {
+			if (c.source === source) count++;
+		}
+		return count;
+	}
+
 	/** Fetch all contacts from group participants via groupFetchAllParticipating. */
 	async fetchContactsFromGroups(socket: {
 		groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string; phoneNumber?: string }> }>>;
@@ -97,10 +125,11 @@ export class ContactsService {
 					this.contacts.set(p.id, {
 						id: p.id,
 						phoneNumber: p.phoneNumber,
+						source: 'group',
 					});
 					newCount++;
 				} else if (p.phoneNumber && !existing.phoneNumber) {
-					this.contacts.set(p.id, { ...existing, phoneNumber: p.phoneNumber });
+					this.contacts.set(p.id, { ...existing, phoneNumber: p.phoneNumber, source: existing.source || 'group' });
 				}
 			}
 		}
