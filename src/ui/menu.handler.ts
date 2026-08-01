@@ -10,6 +10,7 @@ import { RecentsService } from "../services/recents.service.js";
 import { SessionManager, type Contact } from "../services/session.manager.js";
 import { type SyncedContact } from "../services/contacts.service.js";
 import { WhatsAppService } from "../services/whatsapp.service.js";
+import { fileLog } from "../services/storage-path.js";
 import { showMessageDetailView } from "./message-detail.view.js";
 import { showMessageReplyView } from "./message-reply.view.js";
 
@@ -606,6 +607,7 @@ export class MenuHandler {
 
 	private async manageContactsList(ctx: ExtensionCommandContext) {
 		const contactsService = this.whatsappService.getContactsService();
+		fileLog(`[Menu] manageContactsList called, contacts count: ${contactsService.getCount()}`);
 		const contacts = contactsService.getAllContacts();
 
 		if (contacts.length === 0) {
@@ -631,6 +633,7 @@ export class MenuHandler {
 			];
 
 			const choice = await ctx.ui.select(title, options);
+			fileLog(`[Menu] contacts select choice: ${choice}`);
 			if (!choice || choice === backLabel) {
 				await this.handleCommand(ctx);
 				return;
@@ -653,14 +656,14 @@ export class MenuHandler {
 		const backLabel = t("menu.root.back");
 		const fetchPhotoLabel = t("menu.contacts.contact.fetchPhoto");
 
-		// Print details to console
+		// Show details via notify (console.log breaks Pi TUI rendering)
 		const lines: string[] = [];
 		if (contact.name) lines.push(t("menu.contacts.contact.name", { name: contact.name }));
 		if (contact.phoneNumber) lines.push(t("menu.contacts.contact.phone", { phone: contact.phoneNumber }));
 		if (contact.lid) lines.push(t("menu.contacts.contact.lid", { lid: contact.lid }));
 		if (contact.status) lines.push(t("menu.contacts.contact.status", { status: contact.status }));
 		lines.push(`ID: ${contact.id}`);
-		console.log([title, ...lines].join("\n"));
+		ctx.ui.notify([title, ...lines].join("\n"), "info");
 
 		const options = [fetchPhotoLabel, backLabel];
 		const choice = await ctx.ui.select(title, options);
@@ -671,8 +674,7 @@ export class MenuHandler {
 				try {
 					const url = await socket.profilePictureUrl(contact.id, "image");
 					if (url) {
-						console.log(t("menu.contacts.contact.photoUrl", { url }));
-						ctx.ui.notify(url, "info");
+						ctx.ui.notify(t("menu.contacts.contact.photoUrl", { url }), "info");
 					} else {
 						ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
 					}

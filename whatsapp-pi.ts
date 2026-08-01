@@ -1032,12 +1032,12 @@ export default function (pi: ExtensionAPI) {
 
 				whatsappService.sendMessage(outboundJid, text).then((result) => {
 					if (result.success) {
-						console.log(`[message_end] SENT to ${outboundJid}`);
+						ctx.ui.notify(`[message_end] SENT to ${outboundJid}`, "info");
 					} else {
-						console.error(`[message_end] FAILED to ${outboundJid}: ${result.error}`);
+						ctx.ui.notify(`[message_end] FAILED to ${outboundJid}: ${result.error}`, "error");
 					}
 				}).catch((err) => {
-					console.error(`[message_end] ERROR sending to ${outboundJid}:`, err);
+					ctx.ui.notify(`[message_end] ERROR sending to ${outboundJid}: ${err}`, "error");
 				});
 			}
 		}
