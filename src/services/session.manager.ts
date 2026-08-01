@@ -1,3 +1,4 @@
+import { fileLog } from './storage-path.js';
 import { useMultiFileAuthState } from 'baileys';
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'fs/promises';
 import { basename, join } from 'path';
@@ -136,7 +137,7 @@ export class SessionManager {
             // Validate and deduplicate all contact lists
             const warnings = this.validateAndDeduplicateContacts();
             if (warnings.length > 0) {
-                console.warn('[SessionManager] Contact validation warnings:', warnings);
+                fileLog('[SessionManager] Contact validation warnings: ' + warnings);
             }
             this.status = config.status || 'logged-out';
             this.hasAuthState = Boolean(config.hasAuthState);
@@ -255,7 +256,7 @@ export class SessionManager {
             }
         } catch (error) {
             await this.removeConfigTempFile(tempPath);
-            console.error(t('session.manager.failedSaveConfig'), error);
+            fileLog(t('session.manager.failedSaveConfig') + ' ' + error);
         }
         // Validate after save
         this.validateAndDeduplicateContacts();
@@ -325,7 +326,7 @@ export class SessionManager {
         }
 
         if (typeof cleanNumber !== 'string') {
-            console.warn(t('session.manager.invalidNumber'), cleanNumber);
+            fileLog(t('session.manager.invalidNumber') + ' ' + cleanNumber);
             return;
         }
 
@@ -354,7 +355,7 @@ export class SessionManager {
 
     async addAllowedGroup(groupJid: string, name?: string) {
         if (!SessionManager.isGroupJid(groupJid)) {
-            console.warn(t('session.manager.invalidNumber'), groupJid);
+            fileLog(t('session.manager.invalidNumber') + ' ' + groupJid);
             return;
         }
 
@@ -699,7 +700,7 @@ export class SessionManager {
             this.hasAuthState = false;
             await this.saveConfig();
         } catch (error) {
-            console.error(t('session.manager.failedDeleteAuthState'), error);
+            fileLog(t('session.manager.failedDeleteAuthState') + ' ' + error);
         }
     }
 

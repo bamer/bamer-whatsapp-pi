@@ -461,7 +461,7 @@ export class WhatsAppService {
 
     private async handleConnectionOpen() {
         if (this.verboseMode) {
-            console.log(t('service.whatsapp.connectionOpened'));
+            fileLog(t('service.whatsapp.connectionOpened'));
         }
 
         this.isReconnecting = false;
@@ -474,8 +474,8 @@ export class WhatsAppService {
 
         if (this.qrWasShown) {
             this.qrWasShown = false;
-            console.log(t('service.whatsapp.qrConnected'));
-            console.log(t('service.whatsapp.qrWelcomeMessage'));
+            fileLog(t('service.whatsapp.qrConnected'));
+            fileLog(t('service.whatsapp.qrWelcomeMessage'));
             void this.sendQrWelcome();
         }
     }
@@ -525,17 +525,17 @@ export class WhatsAppService {
         }
 
         if (this.verboseMode) {
-            console.error(t('service.whatsapp.connectionClosed', { statusCode: statusCode ?? 'unknown', shouldReconnect: String(shouldReconnect) }));
+            fileLog(t('service.whatsapp.connectionClosed', { statusCode: statusCode ?? 'unknown', shouldReconnect: String(shouldReconnect) }));
         }
 
         if (shouldTreatAsLoggedOut) {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.sessionRejected', { statusCode: statusCode ?? 'unknown' }));
+                fileLog(t('service.whatsapp.sessionRejected', { statusCode: statusCode ?? 'unknown' }));
             }
             if (isBadMac) {
                 if (this.verboseMode) {
-					console.error(t('service.whatsapp.badMacDetected'));
-                    console.error(t('service.whatsapp.runClearAuth'));
+					fileLog(t('service.whatsapp.badMacDetected'));
+                    fileLog(t('service.whatsapp.runClearAuth'));
                 }
                 this.onStatusUpdate?.(t('service.whatsapp.sessionErrorBadMac'));
             } else if (isAuthRejected && allowPairingOnAuthFailure) {
@@ -553,7 +553,7 @@ export class WhatsAppService {
 
         if (statusCode === DisconnectReason.connectionReplaced) {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.connectionReplaced'));
+                fileLog(t('service.whatsapp.connectionReplaced'));
             }
             this.cleanupSocket();
             this.isReconnecting = false;
@@ -606,7 +606,7 @@ export class WhatsAppService {
             timestamp: this.getIncomingTimestamp(message.messageTimestamp)
         })).catch(error => {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.failedRecordRecentMessage'), error);
+                fileLog(t('service.whatsapp.failedRecordRecentMessage') + ' ' + error);
             }
         });
     }
@@ -754,7 +754,7 @@ export class WhatsAppService {
         await this.sendPresence(recipientJid, 'paused');
 
         if (!result.success) {
-            console.error(t('service.whatsapp.failedSendMessage', { jid: recipientJid, error: result.error ?? t('message.sender.unknownError') }));
+            fileLog(t('service.whatsapp.failedSendMessage', { jid: recipientJid, error: result.error ?? t('message.sender.unknownError') }));
         }
 
         return result;
@@ -788,7 +788,7 @@ const messageOptions: any = { text };
             };
         } catch (error: unknown) {
             await this.sendPresence(normalizedJid, 'paused');
-            console.error(t('service.whatsapp.failedSendMenuMessage', { jid: normalizedJid }), error);
+            fileLog(t('service.whatsapp.failedSendMenuMessage', { jid: normalizedJid }) + ' ' + error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
@@ -804,7 +804,7 @@ const messageOptions: any = { text };
             await socket.sendPresenceUpdate(presence, jid);
         } catch (error) {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.failedPresenceUpdate', { jid }), error);
+                fileLog(t('service.whatsapp.failedPresenceUpdate', { jid }) + ' ' + error);
             }
         }
     }
@@ -816,7 +816,7 @@ const messageOptions: any = { text };
             await socket.readMessages([{ remoteJid: jid, id: messageId, fromMe }]);
         } catch (error) {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.failedMarkRead'), error);
+                fileLog(t('service.whatsapp.failedMarkRead') + ' ' + error);
             }
         }
     }
@@ -833,7 +833,7 @@ const messageOptions: any = { text };
             await this.saveCreds?.();
         } catch (error) {
             if (this.verboseMode) {
-                console.error(t('service.whatsapp.failedPersistAuthState'), error);
+                fileLog(t('service.whatsapp.failedPersistAuthState') + ' ' + error);
             }
         }
 

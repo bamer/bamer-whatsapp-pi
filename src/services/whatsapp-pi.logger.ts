@@ -107,28 +107,18 @@ export class WhatsAppPiLogger {
     }
 
     info(message: string, ...args: unknown[]) {
-        console.error(message, ...args);
         this.writeToFile('INFO', message, args);
     }
 
     log(message: string, ...args: unknown[]) {
         this.writeToFile('LOG', message, args);
-        if (this.verbose) {
-            console.error(message, ...args);
-        }
     }
 
     warn(message: string, ...args: unknown[]) {
         this.writeToFile('WARN', message, args);
-        if (this.verbose) {
-            console.warn(message, ...args);
-        }
     }
 
     error(message: string, ...args: unknown[]) {
         this.writeToFile('ERROR', message, args);
-        if (this.verbose) {
-            console.error(message, ...args);
-        }
     }
 }

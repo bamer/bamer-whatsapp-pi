@@ -317,7 +317,7 @@ export class MenuHandler {
 		const output = this.printedAllowedContacts
 			.map((entry) => `  • ${entry}`)
 			.join("\n");
-		console.log(
+		fileLog(
 			[t("menu.allowed.printAllowedNumbersTitle"), output].join("\n"),
 		);
 		ctx.ui.notify(this.printedAllowedContacts.join("\n"), "info");
@@ -469,7 +469,7 @@ export class MenuHandler {
 		const output = this.printedAllowedGroups
 			.map((entry) => `  • ${entry}`)
 			.join("\n");
-		console.log(
+		fileLog(
 			[t("menu.allowedGroups.printAllowedGroupsTitle"), output].join("\n"),
 		);
 		ctx.ui.notify(this.printedAllowedGroups.join("\n"), "info");
@@ -595,7 +595,7 @@ export class MenuHandler {
 		contactNumber: string,
 	) {
 		const output = "  • " + contactNumber;
-		console.log([t("menu.updateTargets.printTitle"), output].join("\n"));
+		fileLog([t("menu.updateTargets.printTitle"), output].join("\n"));
 		ctx.ui.notify(contactNumber, "info");
 	}
 

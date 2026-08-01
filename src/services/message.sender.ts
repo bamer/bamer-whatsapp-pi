@@ -95,7 +95,7 @@ export class MessageSender {
             } catch (error: unknown) {
                 lastError = error;
                 fileLog(`ERROR attempt ${attempts}: ${error instanceof Error ? error.message : String(error)}`);
-                console.error(t('message.sender.attemptFailed', {
+                fileLog(t('message.sender.attemptFailed', {
                     attempt: attempts,
                     recipientJid: request.recipientJid,
                     error: error instanceof Error ? error.message : String(error)
@@ -161,7 +161,7 @@ export class MessageSender {
                 fileLog(`SUCCESS sending ${type} to ${recipientJid} on attempt ${attempts}`);
                 return { success: true, messageId: response?.key?.id, attempts };
             } catch (error) {
-                console.error(`[MessageSender] ${type} send attempt ${attempts} failed:`, error instanceof Error ? error.message : String(error));
+                fileLog(`[MessageSender] ${type} send attempt ${attempts} failed: ${error instanceof Error ? error.message : String(error)}`);
                 if (attempts < maxRetries) await this.sleep(Math.pow(2, attempts) * 1000);
             }
         }
