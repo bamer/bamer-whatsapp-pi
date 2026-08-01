@@ -106,7 +106,8 @@ interface WhatsAppSocketLike {
     sendPresenceUpdate(presence: 'composing' | 'recording' | 'paused', jid: string): Promise<void>;
     readMessages(messages: Array<{ remoteJid: string; id: string; fromMe: boolean }>): Promise<void>;
     groupMetadata(jid: string): Promise<{ id: string; subject: string; participants: Array<{ id: string }> }>;
-    groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string }> }>>;
+    groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string; phoneNumber?: string }> }>>;
+    onWhatsApp(...jids: string[]): Promise<{ jid: string; exists: boolean }[]>;
     groupParticipantsUpdate(jid: string, participants: string[], action: 'add' | 'remove' | 'demote' | 'promote'): Promise<any>;
     profilePictureUrl(jid: string, type?: 'preview' | 'image'): Promise<string | undefined>;
 }

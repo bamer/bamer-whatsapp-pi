@@ -724,6 +724,7 @@ export class MenuHandler {
 			agentSignatureLabel,
 			logMaxSizeLabel,
 			logRetentionLabel,
+			t("menu.settings.fetchContacts"),
 			backLabel,
 		];
 
@@ -763,6 +764,27 @@ export class MenuHandler {
 					t("menu.settings.assistantNameSet", { value: newName.trim() }),
 					"info",
 				);
+			}
+			await this.manageSettings(ctx);
+			return;
+		}
+
+		if (choice === t("menu.settings.fetchContacts")) {
+			const socket = this.whatsappService.getSocket();
+			if (!socket?.groupFetchAllParticipating) {
+				ctx.ui.notify(t("menu.settings.fetchContactsNoSocket"), "error");
+				await this.manageSettings(ctx);
+				return;
+			}
+			ctx.ui.notify(t("menu.settings.fetchContactsFetching"), "info");
+			try {
+				const result = await this.whatsappService.getContactsService().fetchContactsFromGroups(socket);
+				ctx.ui.notify(
+					t("menu.settings.fetchContactsResult", { groups: result.groups, contacts: result.contacts }),
+					"info",
+				);
+			} catch (err) {
+				ctx.ui.notify(t("menu.settings.fetchContactsError", { error: String(err) }), "error");
 			}
 			await this.manageSettings(ctx);
 			return;

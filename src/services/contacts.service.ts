@@ -81,6 +81,35 @@ export class ContactsService {
 		return this.contacts.size;
 	}
 
+	/** Fetch all contacts from group participants via groupFetchAllParticipating. */
+	async fetchContactsFromGroups(socket: {
+		groupFetchAllParticipating(): Promise<Record<string, { id: string; subject: string; participants: Array<{ id: string; phoneNumber?: string }> }>>;
+	}): Promise<{ groups: number; contacts: number }> {
+		const groups = await socket.groupFetchAllParticipating();
+		const groupCount = Object.keys(groups).length;
+		let newCount = 0;
+
+		for (const [jid, meta] of Object.entries(groups)) {
+			for (const p of meta.participants) {
+				if (!p?.id) continue;
+				const existing = this.contacts.get(p.id);
+				if (!existing) {
+					this.contacts.set(p.id, {
+						id: p.id,
+						phoneNumber: p.phoneNumber,
+					});
+					newCount++;
+				} else if (p.phoneNumber && !existing.phoneNumber) {
+					this.contacts.set(p.id, { ...existing, phoneNumber: p.phoneNumber });
+				}
+			}
+		}
+
+		fileLog(`[Contacts] Fetched ${newCount} new contacts from ${groupCount} groups (total: ${this.contacts.size})`);
+		this.scheduleSave();
+		return { groups: groupCount, contacts: newCount };
+	}
+
 	/** Fetch profile picture URL for a contact. */
 	async getProfilePictureUrl(
 		socket: { profilePictureUrl?(jid: string, type?: 'preview' | 'image'): Promise<string | undefined> },

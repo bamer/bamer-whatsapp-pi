@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.8.0] - 2025-08-01
+
+### Added
+- **Fetch contacts from groups**: New settings option that manually fetches all contacts from group participants via `groupFetchAllParticipating()` — useful for linked devices that don't receive the full contact list via `contacts.upsert` events
+- **`onWhatsApp` API**: Added to `WhatsAppSocketLike` interface for phone number validation
+- **`fetchContactsFromGroups` method**: New `ContactsService` method that iterates all groups, stores participants as contacts (with LID + phone number), and returns a summary
+
+### Fixed
+- **All `console.log`/`error`/`warn` replaced with `fileLog`**: No more TUI rendering interference — all extension output now goes to `whatsapp-pi.log` via `fileLog()` or `ctx.ui.notify()` per Pi extension API docs
+- **`whatsapp-pi.logger.ts`**: Removed `console.error`/`warn` calls that were firing even in non-verbose mode
+
 ## [1.7.0] - 2025-08-01
 
 ### Added
