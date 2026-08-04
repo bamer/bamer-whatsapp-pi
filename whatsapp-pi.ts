@@ -343,8 +343,10 @@ export default function (pi: ExtensionAPI) {
 		const operatorNumber = operatorJid ? operatorJid.split("@")[0] : "";
 		const isOperator = !isGroup && operatorNumber && sender === operatorNumber;
 
+		const isFromMe = msg.key.fromMe === true;
 		const messageHeader =
-			isOperator ? `[Operator] ${pushName} (${sender}):`
+			isFromMe ? `→ Sent to ${pushName} (${sender})`
+			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${participant}) in group ${remoteJid}:`
 			:	`Message from ${pushName} (${sender}):`;
