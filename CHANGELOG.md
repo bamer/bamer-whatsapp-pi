@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.2] - 2025-08-03
+
+### Fixed
+- **Message direction display**: Outgoing messages (fromMe=true) now show as `→ Sent to` instead of `Message from`, making it clear whether a message was sent or received. Previously, a message Ben sent to Yves appeared as "Message from Ben (79895686287380)" which looked like a message from Yves' number.
+
 ## [1.9.1] - 2025-08-01
 
 ### Fixed
