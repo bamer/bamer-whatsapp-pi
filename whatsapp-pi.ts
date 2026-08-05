@@ -338,14 +338,31 @@ export default function (pi: ExtensionAPI) {
 		const { text, imageBuffer, imageMimeType } =
 			await incomingMediaService.process(resolved, pushName);
 
-		// Format message header: [Operator] prefix for owner messages, group context for groups
+		// Format message header: clear direction (sent vs received)
 		const operatorJid = whatsappService.getOperatorJid();
 		const operatorNumber = operatorJid ? operatorJid.split("@")[0] : "";
 		const isOperator = !isGroup && operatorNumber && sender === operatorNumber;
 
 		const isFromMe = msg.key.fromMe === true;
+
+		/** Look up a contact name from contactsService or config lists. */
+		const lookupName = (jidNumber: string): string => {
+			const clean = jidNumber.startsWith("+") ? jidNumber : `+${jidNumber}`;
+			// Check contacts service first
+			try {
+				const cs = whatsappService.getContactsService();
+				const contact = cs.getContact(clean);
+				if (contact?.name || contact?.notify) return contact.name || contact.notify!;
+			} catch { /* contacts not ready */ }
+			// Check allowList / updateList
+			const all = [...sessionManager.getAllowList(), ...sessionManager.getUpdateList()];
+			const found = all.find((c) => c.number === clean || c.number === jidNumber);
+			if (found?.name) return found.name;
+			return jidNumber; // fallback
+		};
+
 		const messageHeader =
-			isFromMe ? `→ Sent to ${pushName} (${sender})`
+			isFromMe ? `${pushName} sent to ${lookupName(sender)}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${participant}) in group ${remoteJid}:`

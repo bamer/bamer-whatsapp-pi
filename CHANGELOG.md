@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.3] - 2025-08-03
+
+### Fixed
+- **Outgoing message display**: For messages sent by Ben (fromMe=true), the header now shows `Ben sent to Patrice:` instead of `→ Sent to Ben (157831491797218)`. The recipient name is looked up from the contacts service and config lists, not from `msg.pushName` (which is the sender's name, not the recipient's).
+
 ## [1.9.2] - 2025-08-03
 
 ### Fixed
