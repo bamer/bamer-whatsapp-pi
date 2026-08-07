@@ -335,8 +335,19 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		const { text, imageBuffer, imageMimeType } =
+		const { text, imageBuffer, imageMimeType, savedMediaPath } =
 			await incomingMediaService.process(resolved, pushName);
+
+		// Media indicator for outgoing messages
+		const mediaIndicator =
+			resolved.kind === 'image' ? '📷 Photo'
+			: resolved.kind === 'video' ? '🎥 Video'
+			: resolved.kind === 'audio' ? '🎤 Audio'
+			: resolved.kind === 'document' ? '📄 Document'
+			: resolved.kind === 'contact' ? '👤 Contact'
+			: resolved.kind === 'location' ? '📍 Location'
+			: resolved.kind === 'reaction' ? '❤️ Reaction'
+			: '';
 
 		// Format message header: clear direction (sent vs received)
 		const operatorJid = whatsappService.getOperatorJid();
@@ -362,7 +373,7 @@ export default function (pi: ExtensionAPI) {
 		};
 
 		const messageHeader =
-			isFromMe ? `${pushName} sent to ${lookupName(sender)}:`
+			isFromMe ? `${pushName} sent to ${lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${participant}) in group ${remoteJid}:`

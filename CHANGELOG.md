@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.4] - 2025-08-07
+
+### Added
+- **Media indicator for outgoing messages**: When Ben sends a photo, video, audio, document, contact, location, or reaction, the header now includes an emoji indicator (📷 Photo, 🎥 Video, 🎤 Audio, 📄 Document, 👤 Contact, 📍 Location, ❤️ Reaction). Previously, outgoing media messages were displayed without any indication of the media type.
+
 ## [1.9.3] - 2025-08-03
 
 ### Fixed
