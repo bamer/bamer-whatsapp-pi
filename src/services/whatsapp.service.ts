@@ -825,8 +825,18 @@ const messageOptions: any = { text };
 
     async logout() {
         this.intentionalStop = true;
-        await this.socket?.logout();
-        await this.sessionManager.deleteAuthState();
+        // Try to logout via socket, but don't fail if socket is already closed
+        try {
+            await this.socket?.logout();
+        } catch (error) {
+            fileLog(`[WhatsApp-Pi] logout socket call failed (likely already disconnected): ${error}`);
+        }
+        // Always delete auth state so user can re-pair with QR
+        try {
+            await this.sessionManager.deleteAuthState();
+        } catch (error) {
+            fileLog(`[WhatsApp-Pi] deleteAuthState failed: ${error}`);
+        }
     }
 
     async stop() {

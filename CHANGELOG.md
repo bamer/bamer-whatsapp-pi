@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.5] - 2025-08-10
+
+### Fixed
+- **Logoff when socket disconnected**: Previously, clicking "Logoff & Delete Session" while the socket was already closed threw "Connection Closed" and prevented the auth state from being deleted. Now the socket logout is wrapped in try/catch, and the auth state is always deleted so the user can re-pair with a fresh QR code.
+
 ## [1.9.4] - 2025-08-07
 
 ### Added
