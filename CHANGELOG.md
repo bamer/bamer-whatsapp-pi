@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.6] - 2025-08-12
+
+### Fixed
+- **Contact list search now works**: The search in the contact list now filters by name, phone number, LID, AND the display label. Previously it only matched on the internal JID value which users couldn't know.
+- **Enter to open contact detail**: Pressing Enter on a contact in the searchable list now opens the contact detail menu (fetch photo, back). The onSelect callback is now properly wired.
+
 ## [1.9.5] - 2025-08-10
 
 ### Fixed

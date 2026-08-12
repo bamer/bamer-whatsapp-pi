@@ -5,7 +5,6 @@ import {
 	type SelectListTheme,
 	matchesKey,
 	Key,
-	visibleWidth,
 } from "@earendil-works/pi-tui";
 import type { Component, Focusable } from "@earendil-works/pi-tui";
 
@@ -28,11 +27,15 @@ export class SearchableContactList implements Component, Focusable {
 	private searchInput: Input;
 	private selectList: SelectList;
 	private _focused = false;
+	private allItems: SelectItem[];
+	private filteredItems: SelectItem[];
 
 	public onSelect?: (item: SelectItem) => void;
 	public onCancel?: () => void;
 
 	constructor(items: SelectItem[], theme: any, maxVisible = 20) {
+		this.allItems = items;
+		this.filteredItems = items;
 		this.searchInput = new Input();
 		this.selectList = new SelectList(items, maxVisible, buildSelectListTheme(theme));
 
@@ -51,9 +54,26 @@ export class SearchableContactList implements Component, Focusable {
 		this.searchInput.focused = value;
 	}
 
-	/** Update the filter when search text changes. */
+	/** Update the filter when search text changes — searches label, description, AND value. */
 	private updateFilter(): void {
-		this.selectList.setFilter(this.searchInput.getValue());
+		const filter = this.searchInput.getValue().toLowerCase().trim();
+		if (!filter) {
+			this.filteredItems = this.allItems;
+		} else {
+			this.filteredItems = this.allItems.filter((item) => {
+				const val = (item.value || "").toLowerCase();
+				const label = (item.label || "").toLowerCase();
+				const desc = (item.description || "").toLowerCase();
+				return val.includes(filter) || label.includes(filter) || desc.includes(filter);
+			});
+		}
+		// Pass pre-filtered items to SelectList (which uses startsWith on value)
+		// We set filter to empty so SelectList shows all our pre-filtered items
+		this.selectList.setFilter("");
+		// Replace the internal filteredItems with our custom filtered list
+		// (filteredItems is private in TS types but public in JS implementation)
+		(this.selectList as any).filteredItems = this.filteredItems;
+		this.selectList.setSelectedIndex(0);
 	}
 
 	handleInput(data: string): void {
