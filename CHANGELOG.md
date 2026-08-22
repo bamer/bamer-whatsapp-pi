@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.12.0] - 2026-08-22
+
+### Tests
+- **Coverage: 92.6% -> 95.9% statements** (96.5% lines, 85.6% branches), 494 tests green across 40 files.
+- recents.menu: allow/update-list/alias/history branches for DMs and groups, unknown-selection fallback
+- incoming-media: video mp4/webm download + failure fallback, document download failure, PDF empty-text notice and short preview
+- session.manager: log setters, duplicate-number validation warnings, escaped-quote JSON parsing, group-migration alias backfill
+- recents.service: number normalization matrix, 80-char preview truncation, seconds-to-ms timestamps, recency tie-breaking, hasRecentConversations
+- message.sender: offline TIMEOUT path (fake timers), non-retryable break, media without socket, group media session prep
+- i18n: all three CLI locale-override forms
+- facade: dispatch of all six root menu entries
+- whatsapp.service: verbose-mode lifecycle logging, QR callback routing, reconnect-in-flight and intentional-stop guards, sendMenuMessage failure reporting
+
 ## [1.11.0] - 2026-08-22
 
 ### Changed
