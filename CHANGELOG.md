@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0] - 2026-08-22
+
+### Changed
+- **MenuHandler split into domain modules**: the 1450-line god module is now a thin facade (129 lines) dispatching to `src/ui/menu/`: allow-list.menu.ts, groups.menu.ts, update-targets.menu.ts, contacts.menu.ts, recents.menu.ts, settings.menu.ts + shared.helpers.ts and a typed MenuEnv (services + openRootMenu callback). Public API unchanged (`new MenuHandler(whatsappService, sessionManager, recentsService)`).
+
+### Tests
+- **Coverage: 78% -> 92.6%** statements (93.2% lines), 439 tests green.
+- Menu modules fully covered (~93% avg): every action of each submenu (add/remove/alias/send/print), confirmations, error branches.
+- Pagination Next/Previous tested for both the recents list and conversation history.
+- Facade root dispatch covered: connect (pairing vs reconnect message), disconnect, logoff confirmation flow.
+- Shared helpers exported and tested directly (`getRecentsGroupKey`, `formatGroupedRecentOption`...).
+
 ## [1.10.0] - 2026-08-22
 
 ### Fixed
