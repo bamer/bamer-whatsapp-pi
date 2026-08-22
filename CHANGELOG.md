@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.10.0] - 2026-08-22
+
+### Fixed
+- **Settings menu dead options**: "Agent Signature", "Max Log Size" and "Log Retention" were displayed in the settings menu but had no handlers — clicking them silently bounced back to the main menu. All three are now wired (signature: empty = none, cancel = keep; log size clamped 0-20 MB; retention clamped 0-365 days).
+- **Truncated reconnect condition**: `shouldTreatAsLoggedOut` in `handleConnectionClosed` was accidentally truncated to `isBadMac`, losing `|| isAuthRejected`. Auth-rejected disconnects (400/401) now land in the logged-out branch again: session files are PRESERVED, status goes to `disconnected`, the user sees "Session Preserved (Reconnect Failed)" instead of an endless reconnect loop. `deleteAuthState` remains explicit-only.
+- **Contact list Enter key**: `SearchableContactList` never forwarded its `onSelect`/`onCancel` callbacks to the inner `SelectList` — selection could be lost depending on entry path.
+
+### Changed
+- **MenuHandler split into domain modules**: the 1450-line god module is now a thin facade (129 lines) over `src/ui/menu/`: allow-list, groups, update-targets, contacts, recents, settings + shared helpers and a typed `MenuEnv`. Public API unchanged (`new MenuHandler(...)`).
+- **French translations completed**: all settings-menu strings now have FR translations (previously fell back to English).
+- Removed dead code (`getAgentJidCandidates`, `normalizeJidIdentity`).
+
+### Tests
+- Test suite overhauled: **335 tests green** (was 122 passing / 48 failing). Stale mocks updated to the v1.9.x codebase (SessionManager class API, LiteParse PDF parser, sherpa-onnx audio pipeline, file-based logger with rotation, storage-path consolidation).
+- Coverage raised from **63% to 78%** overall; whatsapp.service.ts 93%, session.manager.ts 96%, contacts.service/searchable-list/audio/logger/storage-path ~100%.
+- New suites: socket lifecycle (reconnect backoff, auth-rejection handling), incoming message flows (fromMe/LID/groups), sendMenuMessage, prepareGroupSession cache, group participants, media sending.
+
 ## [1.9.6] - 2025-08-12
 
 ### Fixed
