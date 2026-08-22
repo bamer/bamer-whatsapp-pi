@@ -798,6 +798,55 @@ export class MenuHandler {
 			return;
 		}
 
+		if (choice === agentSignatureLabel) {
+			const newSig = await ctx.ui.input(
+				t("menu.settings.agentSignaturePrompt"),
+			);
+			// Cancel (null) keeps current value; empty string explicitly clears it.
+			if (newSig != null) {
+				const trimmed = newSig.trim();
+				await this.sessionManager.setAgentSignature(trimmed);
+				ctx.ui.notify(
+					t("menu.settings.agentSignatureSet", { value: trimmed || "(none)" }),
+					"info",
+				);
+			}
+			await this.manageSettings(ctx);
+			return;
+		}
+
+		if (choice === logMaxSizeLabel) {
+			const raw = await ctx.ui.input(t("menu.settings.logMaxSizePrompt"));
+			if (raw && raw.trim()) {
+				const size = Number(raw);
+				if (!Number.isNaN(size)) {
+					const clamped = Math.max(0, Math.min(20, Math.round(size)));
+					await this.sessionManager.setLogMaxSizeMB(clamped);
+					ctx.ui.notify(t("menu.settings.logMaxSizeSet", { value: clamped }), "info");
+				} else {
+					ctx.ui.notify(t("menu.settings.logMaxSizePrompt"), "error");
+				}
+			}
+			await this.manageSettings(ctx);
+			return;
+		}
+
+		if (choice === logRetentionLabel) {
+			const raw = await ctx.ui.input(t("menu.settings.logRetentionPrompt"));
+			if (raw && raw.trim()) {
+				const days = Number(raw);
+				if (!Number.isNaN(days)) {
+					const clamped = Math.max(0, Math.min(365, Math.round(days)));
+					await this.sessionManager.setLogRetentionDays(clamped);
+					ctx.ui.notify(t("menu.settings.logRetentionSet", { value: clamped }), "info");
+				} else {
+					ctx.ui.notify(t("menu.settings.logRetentionPrompt"), "error");
+				}
+			}
+			await this.manageSettings(ctx);
+			return;
+		}
+
 		if (choice === t("menu.settings.fetchContacts")) {
 			const socket = this.whatsappService.getSocket();
 			if (!socket?.groupFetchAllParticipating) {

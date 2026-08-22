@@ -36,7 +36,9 @@ describe('MenuHandler — recents grouping helpers', () => {
         getAllowedGroup: vi.fn().mockReturnValue(undefined),
         addNumber: vi.fn().mockResolvedValue(undefined),
         addAllowedGroup: vi.fn().mockResolvedValue(undefined),
-        isGroupJid: vi.fn().mockReturnValue(false)
+        isGroupJid: vi.fn().mockReturnValue(false),
+        isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
+        getAssistantName: vi.fn().mockReturnValue('Agent Pi')
     } as any;
     const mockRecentsService = {
         ensureInitialized: vi.fn().mockResolvedValue(undefined),

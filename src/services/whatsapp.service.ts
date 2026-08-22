@@ -253,24 +253,6 @@ export class WhatsAppService {
         return domain ? `${normalizedLocal}@${domain}` : normalizedLocal;
     }
 
-    private normalizeJidIdentity(jid: string): string {
-        return this.normalizeJidForComparison(jid).split('@')[0];
-    }
-
-    private getAgentJidCandidates(): string[] {
-        const user = this.socket?.user;
-        const rawJids = [user?.id, user?.lid].filter((jid): jid is string => Boolean(jid));
-        const candidates = new Set<string>();
-
-        for (const jid of rawJids) {
-            const normalized = this.normalizeJidForComparison(jid);
-            candidates.add(normalized);
-            candidates.add(this.normalizeJidIdentity(jid));
-        }
-
-        return [...candidates];
-    }
-
     private getDisconnectStatusCode(error: unknown): number | undefined {
         if (!error || typeof error !== 'object') {
             return undefined;
@@ -520,7 +502,7 @@ export class WhatsAppService {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         const isBadMac = this.isBadMacError(errorMessage);
         const isAuthRejected = this.isAuthRejected(statusCode, errorMessage);
-        const shouldTreatAsLoggedOut = isBadMac
+        const shouldTreatAsLoggedOut = isBadMac || isAuthRejected;
 
         if (this.intentionalStop) {
             return;

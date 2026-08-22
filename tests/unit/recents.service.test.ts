@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { join } from 'node:path';
 import { RecentsService } from '../../src/services/recents.service.ts';
+
+// Mirrors createStoragePaths() from storage-path.ts with the mocked homedir.
+const STORAGE_ROOT = join('C:\\Users\\test', '.pi', 'agent', 'extensions', 'whatsapp-pi');
 
 const fsMocks = vi.hoisted(() => ({
     mkdir: vi.fn().mockResolvedValue(undefined),
@@ -35,9 +39,10 @@ describe('RecentsService', () => {
         await service.ensureInitialized();
 
         expect(fsMocks.mkdir).toHaveBeenCalledWith(
-            'C:\\Users\\test\\.pi\\agent\\extension\\whatsapp-pi\\recents',
+            join(STORAGE_ROOT, 'recents'),
             { recursive: true }
         );
+        expect(fsMocks.mkdir).toHaveBeenCalledWith(STORAGE_ROOT, { recursive: true });
         await expect(service.getRecentConversations()).resolves.toEqual([]);
     });
 

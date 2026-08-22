@@ -78,7 +78,7 @@ describe('WhatsAppService Filtering', () => {
         expect(whatsappService.resolveOutboundRecipientJid('120363012345@g.us')).toBe('120363012345@g.us');
     });
 
-    it('should accept messages sent by me fromMe without pi symbol "π" at last letter', () => {
+    it('should accept messages sent by me fromMe without pi symbol "π" at last letter', async () => {
         const callback = vi.fn();
         whatsappService.setMessageCallback(callback);
         
@@ -86,7 +86,7 @@ describe('WhatsAppService Filtering', () => {
         sessionManager.addNumber('+1234567890');
 
         // fromMe is true and does NOT end with π
-        whatsappService.handleIncomingMessages({    
+        await whatsappService.handleIncomingMessages({    
             messages: [{ 
                 key: { remoteJid: '1234567890@s.whatsapp.net', fromMe: true },
                 message: { conversation: 'Testing Pi' }

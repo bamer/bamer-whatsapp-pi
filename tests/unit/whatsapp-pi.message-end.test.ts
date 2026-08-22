@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => {
         getStatus: vi.fn().mockReturnValue('connected'),
         getAllowList: vi.fn().mockReturnValue([]),
         getAllowedGroups: vi.fn().mockReturnValue([]),
+        getUpdateList: vi.fn().mockReturnValue([]),
+        getAutoConnect: vi.fn().mockReturnValue(false),
+        isAllowedUpdateTarget: vi.fn().mockResolvedValue(true),
         setGroupJidForAuth: vi.fn()
     });
 
@@ -21,6 +24,12 @@ const mocks = vi.hoisted(() => {
         setMessageCallback: vi.fn(),
         setGroupBinding: vi.fn(),
         getBoundGroupJid: vi.fn().mockReturnValue(null),
+        getOperatorJid: vi.fn().mockReturnValue(''),
+        getSocket: vi.fn().mockReturnValue(null),
+        getContactsService: vi.fn().mockReturnValue({ fetchContactsFromGroups: vi.fn(), reclassifyContacts: vi.fn() }),
+        sendMediaMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MEDIA1' }),
+        addGroupParticipants: vi.fn().mockResolvedValue({ success: true }),
+        removeGroupParticipants: vi.fn().mockResolvedValue({ success: true }),
         getStatus: vi.fn().mockReturnValue('connected'),
         isVerbose: vi.fn().mockReturnValue(false),
         start: vi.fn().mockResolvedValue(undefined),
@@ -64,25 +73,25 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('../../src/services/session.manager.ts', () => ({
-    SessionManager: Object.assign(vi.fn(() => mocks.sessionManager), {
+    SessionManager: Object.assign(vi.fn(function () { return mocks.sessionManager; }), {
         isGroupJid: (jid: string) => jid.endsWith('@g.us')
     })
 }));
 
 vi.mock('../../src/services/whatsapp.service.ts', () => ({
-    WhatsAppService: vi.fn(() => mocks.whatsappService)
+    WhatsAppService: vi.fn(function () { return mocks.whatsappService; })
 }));
 
 vi.mock('../../src/services/recents.service.ts', () => ({
-    RecentsService: vi.fn(() => mocks.recentsService)
+    RecentsService: vi.fn(function () { return mocks.recentsService; })
 }));
 
 vi.mock('../../src/services/audio.service.ts', () => ({
-    AudioService: vi.fn(() => ({}))
+    AudioService: vi.fn(function () { return {}; })
 }));
 
 vi.mock('../../src/ui/menu.handler.ts', () => ({
-    MenuHandler: vi.fn(() => mocks.menuHandler)
+    MenuHandler: vi.fn(function () { return mocks.menuHandler; })
 }));
 
 vi.mock('../../src/services/incoming-message.resolver.ts', () => ({
@@ -90,7 +99,7 @@ vi.mock('../../src/services/incoming-message.resolver.ts', () => ({
 }));
 
 vi.mock('../../src/services/incoming-media.service.ts', () => ({
-    IncomingMediaService: vi.fn(() => mocks.incomingMediaService)
+    IncomingMediaService: vi.fn(function () { return mocks.incomingMediaService; })
 }));
 
 type PiHandler = (event: any, ctx: any) => Promise<void>;
@@ -157,6 +166,9 @@ const makeAssistantEvent = (text: string) => ({
     }
 });
 
+// Flushes the fire-and-forget promise chains used by the message_end handler.
+const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe('whatsapp-pi message_end handler', () => {
     beforeEach(() => {
         resetI18n();
@@ -176,20 +188,21 @@ describe('whatsapp-pi message_end handler', () => {
         registerExtension(pi as any);
         await pi.handlers.get('session_start')!({}, ctx);
         await pi.handlers.get('message_end')!(makeAssistantEvent('Hello back!'), ctx);
+        await flushAsync();
 
         expect(mocks.whatsappService.sendMessage).toHaveBeenCalledWith(
             '5511999998888@s.whatsapp.net',
             'Hello back!'
         );
+        // Recents are recorded BEFORE the fire-and-forget send, with a pending id.
         expect(mocks.recentsService.recordMessage).toHaveBeenCalledWith(
             expect.objectContaining({
-                messageId: 'MSG123',
                 senderNumber: '+5511999998888',
                 text: 'Hello back!',
                 direction: 'outgoing'
             })
         );
-        expect(ctx.ui.notify).toHaveBeenCalledWith('Sent reply to WhatsApp contact', 'info');
+        expect(ctx.ui.notify).toHaveBeenCalledWith('[message_end] SENT to 5511999998888@s.whatsapp.net', 'info');
     });
 
     it('skips when session is not connected', async () => {
@@ -226,9 +239,11 @@ describe('whatsapp-pi message_end handler', () => {
         registerExtension(pi as any);
         await pi.handlers.get('session_start')!({}, ctx);
         await pi.handlers.get('message_end')!(makeAssistantEvent('Hello'), ctx);
+        await flushAsync();
 
-        expect(mocks.recentsService.recordMessage).not.toHaveBeenCalled();
-        expect(ctx.ui.notify).toHaveBeenCalledWith('Failed to send WhatsApp reply', 'error');
+        // Fire-and-forget: recents are recorded even if the send fails.
+        expect(mocks.recentsService.recordMessage).toHaveBeenCalled();
+        expect(ctx.ui.notify).toHaveBeenCalledWith('[message_end] FAILED to 5511999998888@s.whatsapp.net: timeout', 'error');
     });
 
     it('notifies error when sendMessage throws', async () => {
@@ -240,8 +255,9 @@ describe('whatsapp-pi message_end handler', () => {
         registerExtension(pi as any);
         await pi.handlers.get('session_start')!({}, ctx);
         await pi.handlers.get('message_end')!(makeAssistantEvent('Hello'), ctx);
+        await flushAsync();
 
-        expect(ctx.ui.notify).toHaveBeenCalledWith('Failed to send WhatsApp reply', 'error');
+        expect(ctx.ui.notify).toHaveBeenCalledWith('[message_end] ERROR sending to 5511999998888@s.whatsapp.net: Error: network error', 'error');
     });
 
     it('skips reply when send_wa_message tool already sent to the same JID', async () => {
@@ -280,6 +296,7 @@ describe('whatsapp-pi message_end handler', () => {
         vi.clearAllMocks();
 
         await pi.handlers.get('message_end')!(makeAssistantEvent('Follow up'), ctx);
+        await flushAsync();
 
         expect(mocks.whatsappService.sendMessage).toHaveBeenCalledWith(
             '5511999998888@s.whatsapp.net',

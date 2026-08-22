@@ -1,6 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetI18n } from '../../src/i18n.ts';
 
+// Intercept fileLog writes (appendFileSync) so we can assert log lines without
+// touching the real ~/.pi log file.
+const fsMocks = vi.hoisted(() => ({
+    appendFileSync: vi.fn()
+}));
+
+vi.mock('fs', () => ({
+    appendFileSync: fsMocks.appendFileSync,
+    existsSync: vi.fn().mockReturnValue(false),
+    mkdirSync: vi.fn(),
+    readdirSync: vi.fn().mockReturnValue([]),
+    statSync: vi.fn().mockReturnValue({ size: 0, mtimeMs: 0 }),
+    unlinkSync: vi.fn(),
+    default: { appendFileSync: fsMocks.appendFileSync }
+}));
+
 const SELF_JID_NORMALIZED = '5511999998888@s.whatsapp.net';
 
 const baileysMocks = vi.hoisted(() => {
@@ -92,11 +108,15 @@ describe('WhatsAppService QR welcome message', () => {
         await socket.handlers.get('connection.update')!({ connection: 'open' });
         await Promise.resolve();
 
-        expect(logSpy).toHaveBeenCalledWith('WhatsApp connected');
         expect(socket.sendMessage).toHaveBeenCalledOnce();
         expect(socket.sendMessage).toHaveBeenCalledWith(
             SELF_JID_NORMALIZED,
             expect.objectContaining({ text: expect.stringContaining('Send me a message') })
+        );
+        // Source logs via fileLog (appendFileSync), not console.log — assert the file line.
+        expect(fsMocks.appendFileSync).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining('[WhatsApp-Pi] WhatsApp connected')
         );
 
         await service.stop();

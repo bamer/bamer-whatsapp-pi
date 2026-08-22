@@ -43,6 +43,12 @@ export class SearchableContactList implements Component, Focusable {
 		this.searchInput.onSubmit = () => {
 			this.selectList.handleInput("\r"); // Enter key
 		};
+
+		// Forward selection/cancellation from the inner list to our public callbacks.
+		// Arrow functions dereference this.* at call time, so consumers may assign
+		// onSelect/onCancel at any point after construction.
+		this.selectList.onSelect = (item) => this.onSelect?.(item);
+		this.selectList.onCancel = () => this.onCancel?.();
 	}
 
 	// Focusable — propagate to child Input for IME cursor positioning

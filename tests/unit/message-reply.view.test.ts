@@ -144,4 +144,77 @@ describe('showMessageReplyView', () => {
             senderNumber: '+5511999998888'
         }));
     });
+
+    it('uses the no-readable-text fallback when the original message is blank', async () => {
+        const ctx = createContext(['a reply']);
+        const whatsappService = {
+            resolveOutboundRecipientJid: vi.fn((r: string) => r),
+            sendMenuMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MSG-EMPTY' })
+        };
+        const recentsService = { recordMessage: vi.fn().mockResolvedValue(undefined) };
+
+        await showMessageReplyView(ctx as any, {
+            selectedMessage: {
+                messageId: 'MSG-BLANK',
+                senderNumber: '+5511999998888',
+                text: '   ',
+                direction: 'incoming',
+                timestamp: 1234567890
+            },
+            whatsappService: whatsappService as any,
+            recentsService: recentsService as any
+        } as any);
+
+        // The success notify embeds the built preview of the ORIGINAL text (fallback label).
+        expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining('[No readable text'), 'info');
+    });
+
+    it('keeps group JIDs intact when recording outbound replies', async () => {
+        const ctx = createContext(['group answer']);
+        const whatsappService = {
+            resolveOutboundRecipientJid: vi.fn((r: string) => r),
+            sendMenuMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MSG-GROUP' })
+        };
+        const recentsService = { recordMessage: vi.fn().mockResolvedValue(undefined) };
+
+        await showMessageReplyView(ctx as any, {
+            selectedMessage: {
+                messageId: 'MSG-GROUP-IN',
+                senderNumber: '120363409409770410@g.us',
+                text: 'question',
+                direction: 'incoming',
+                timestamp: 1234567890
+            },
+            whatsappService: whatsappService as any,
+            recentsService: recentsService as any
+        } as any);
+
+        expect(recentsService.recordMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ senderNumber: '120363409409770410@g.us', direction: 'outgoing' })
+        );
+    });
+
+    it('notifies an error when the send fails', async () => {
+        const ctx = createContext(['will fail']);
+        const whatsappService = {
+            resolveOutboundRecipientJid: vi.fn((r: string) => r),
+            sendMenuMessage: vi.fn().mockResolvedValue({ success: false, error: 'socket gone' })
+        };
+        const recentsService = { recordMessage: vi.fn().mockResolvedValue(undefined) };
+
+        await showMessageReplyView(ctx as any, {
+            selectedMessage: {
+                messageId: 'MSG-FAIL',
+                senderNumber: '+5511999998888',
+                text: 'hello there my friend',
+                direction: 'incoming',
+                timestamp: 1234567890
+            },
+            whatsappService: whatsappService as any,
+            recentsService: recentsService as any
+        } as any);
+
+        expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining('socket gone'), 'error');
+        expect(recentsService.recordMessage).not.toHaveBeenCalled();
+    });
 });

@@ -11,7 +11,14 @@ const mocks = vi.hoisted(() => {
         getStatus: vi.fn().mockReturnValue('connected'),
         getAllowList: vi.fn().mockReturnValue([{ number: '+5511999998888', name: 'Ana' }]),
         getAllowedGroups: vi.fn().mockReturnValue([]),
-        setGroupJidForAuth: vi.fn()
+        setGroupJidForAuth: vi.fn(),
+        getAutoConnect: vi.fn().mockReturnValue(false),
+        getAssistantName: vi.fn().mockReturnValue('Agent Pi'),
+        getAgentSignature: vi.fn().mockReturnValue('π'),
+        getLogMaxSizeMB: vi.fn().mockReturnValue(5),
+        getLogRetentionDays: vi.fn().mockReturnValue(7),
+        getUpdateList: vi.fn().mockReturnValue([]),
+        isAllowedUpdateTarget: vi.fn().mockResolvedValue(false)
     });
 
     const createWhatsAppService = () => ({
@@ -29,6 +36,12 @@ const mocks = vi.hoisted(() => {
         sendMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MSG123', attempts: 1 }),
         resolveOutboundRecipientJid: vi.fn((recipient: string) => recipient),
         getLastRemoteJid: vi.fn().mockReturnValue('5511999998888@s.whatsapp.net'),
+        getOperatorJid: vi.fn().mockReturnValue(''),
+        getSocket: vi.fn().mockReturnValue(null),
+        getContactsService: vi.fn().mockReturnValue({ fetchContactsFromGroups: vi.fn(), reclassifyContacts: vi.fn() }),
+        sendMediaMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MEDIA1' }),
+        addGroupParticipants: vi.fn().mockResolvedValue({ success: true }),
+        removeGroupParticipants: vi.fn().mockResolvedValue({ success: true }),
         markRead: vi.fn(),
         sendPresence: vi.fn().mockResolvedValue(undefined)
     });
@@ -65,25 +78,25 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('../../src/services/session.manager.ts', () => ({
-    SessionManager: Object.assign(vi.fn(() => mocks.sessionManager), {
+    SessionManager: Object.assign(vi.fn(function () { return mocks.sessionManager; }), {
         isGroupJid: (jid: string) => jid.endsWith('@g.us')
     })
 }));
 
 vi.mock('../../src/services/whatsapp.service.ts', () => ({
-    WhatsAppService: vi.fn(() => mocks.whatsappService)
+    WhatsAppService: vi.fn(function () { return mocks.whatsappService; })
 }));
 
 vi.mock('../../src/services/recents.service.ts', () => ({
-    RecentsService: vi.fn(() => mocks.recentsService)
+    RecentsService: vi.fn(function () { return mocks.recentsService; })
 }));
 
 vi.mock('../../src/services/audio.service.ts', () => ({
-    AudioService: vi.fn(() => ({}))
+    AudioService: vi.fn(function () { return {}; })
 }));
 
 vi.mock('../../src/ui/menu.handler.ts', () => ({
-    MenuHandler: vi.fn(() => mocks.menuHandler)
+    MenuHandler: vi.fn(function () { return mocks.menuHandler; })
 }));
 
 vi.mock('../../src/services/incoming-message.resolver.ts', () => ({
@@ -91,7 +104,7 @@ vi.mock('../../src/services/incoming-message.resolver.ts', () => ({
 }));
 
 vi.mock('../../src/services/incoming-media.service.ts', () => ({
-    IncomingMediaService: vi.fn(() => mocks.incomingMediaService)
+    IncomingMediaService: vi.fn(function () { return mocks.incomingMediaService; })
 }));
 
 type PiHandler = (event: any, ctx: any) => Promise<void>;

@@ -74,7 +74,10 @@ const createServices = () => {
         getAllowedContact: vi.fn().mockReturnValue(undefined),
         isAllowed: vi.fn().mockReturnValue(false),
         isAllowedGroup: vi.fn().mockReturnValue(false),
-        isConversationAllowed: vi.fn().mockReturnValue(false)
+        isConversationAllowed: vi.fn().mockReturnValue(false),
+        getAgentSignature: vi.fn().mockReturnValue('π'),
+        isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
+        getAssistantName: vi.fn().mockReturnValue('Agent Pi')
     };
 
     const recentsService = {
@@ -200,7 +203,7 @@ describe('MenuHandler', () => {
     });
 
     it('prints allowed contacts to the console and TUI info output on separate lines', async () => {
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {}); void logSpy;
         const { whatsappService, sessionManager, recentsService } = createServices();
         sessionManager.getAllowList.mockReturnValue([
             { number: '+5511999998888', name: 'Ana' },
@@ -231,10 +234,9 @@ describe('MenuHandler', () => {
             'Remove Contact',
             'Back'
         ]);
+        // Source now logs via fileLog (appendFileSync) — assert the TUI output only.
         expect(ctx.ui.notify).toHaveBeenCalledWith('+5511999998888', 'info');
         expect(ctx.ui.notify).toHaveBeenCalledWith('+5511999998888\n+553291297719', 'info');
-        expect(logSpy).toHaveBeenCalledWith('[WhatsApp-Pi] Allowed contacts\n  • +5511999998888');
-        expect(logSpy).toHaveBeenCalledWith('[WhatsApp-Pi] Allowed contacts\n  • +5511999998888\n  • +553291297719');
     });
 
     it('sorts allowed groups and adds a valid group JID', async () => {
@@ -553,10 +555,11 @@ describe('MenuHandler', () => {
         expect(ctx.ui.select).toHaveBeenCalledWith(
             expect.stringContaining('History • Ana (+5511999998888)'),
             [
-                expect.stringContaining('Sent'),
+                // Outgoing messages are marked with the assistant name, incoming with "Received".
+                expect.stringContaining('Agent Pi'),
                 expect.stringContaining('Received'),
                 expect.stringContaining('Received'),
-                expect.stringContaining('Sent'),
+                expect.stringContaining('Agent Pi'),
                 'Back'
             ]
         );

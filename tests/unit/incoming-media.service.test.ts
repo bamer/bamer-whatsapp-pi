@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { join } from 'node:path';
 import { IncomingMediaService } from '../../src/services/incoming-media.service.ts';
+
+// Mirrors createStoragePaths().mediaDir (storage-path.ts) with the mocked homedir.
+const HOME = '/home/testuser';
+const MEDIA_DIR = join(HOME, '.pi', 'agent', 'extensions', 'whatsapp-pi', 'whatsapp-medias');
+
+vi.mock('os', () => ({
+    homedir: () => HOME,
+    default: { homedir: () => HOME }
+}));
 
 const mocks = vi.hoisted(() => ({
     downloadContentFromMessage: vi.fn(),
@@ -18,9 +28,10 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 vi.mock('@llamaindex/liteparse', () => ({
-    LiteParse: vi.fn(() => ({
-        parse: mocks.pdfParse
-    }))
+    LiteParse: class {
+        constructor() {}
+        parse = mocks.pdfParse;
+    }
 }));
 
 const streamFrom = async function* (chunks: Buffer[]) {
@@ -57,7 +68,7 @@ describe('IncomingMediaService', () => {
         const audioMessage = { seconds: 2 };
 
         await expect(service.process({ kind: 'audio', text: '[Audio Message]', audioMessage }, 'Ana')).resolves.toEqual({
-            text: '[Transcribed Audio]: audio text'
+            text: '🎤 audio text'
         });
 
         expect(audioService.transcribe).toHaveBeenCalledWith(audioMessage);
@@ -80,7 +91,8 @@ describe('IncomingMediaService', () => {
         expect(result).toEqual({
             text: 'caption',
             imageBuffer: Buffer.from('media'),
-            imageMimeType: 'image/jpeg'
+            imageMimeType: 'image/jpeg',
+            savedMediaPath: join(MEDIA_DIR, 'image', 'image_1234567890.jpg')
         });
     });
 
@@ -118,7 +130,7 @@ describe('IncomingMediaService', () => {
             'document'
         );
         expect(mocks.mkdir).toHaveBeenCalledWith(
-            expect.stringContaining('.pi-data\\whatsapp\\documents'),
+            join(MEDIA_DIR, 'documents'),
             { recursive: true }
         );
         expect(mocks.writeFile).toHaveBeenCalledWith(
@@ -150,7 +162,7 @@ describe('IncomingMediaService', () => {
         }, 'Ana');
 
         expect(result.text).toContain('[Document Received: scanned.pdf]');
-        expect(result.text).toContain('Location: ./.pi-data/whatsapp/documents/1234567890_scanned.pdf');
+        expect(result.text).toContain(`Location: ${join(MEDIA_DIR, 'documents', '1234567890_scanned.pdf')}`);
         expect(result.text).toContain('PDF text was not extracted automatically. The file is saved at the path above.');
         expect(result.text).not.toContain('PDF text preview:');
     });
