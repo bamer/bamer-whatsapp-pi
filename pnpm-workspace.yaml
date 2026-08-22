@@ -7,3 +7,4 @@ minimumReleaseAgeExclude:
   - '@llamaindex/liteparse-win32-arm64-msvc@2.10.1'
   - '@llamaindex/liteparse-win32-x64-msvc@2.10.1'
   - '@llamaindex/liteparse@2.10.1'
+  - eslint@10.9.0
