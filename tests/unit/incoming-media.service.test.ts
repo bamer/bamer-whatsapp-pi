@@ -186,3 +186,99 @@ describe('IncomingMediaService', () => {
         expect(result.text).not.toContain('PDF text was not extracted automatically.');
     });
 });
+
+describe('IncomingMediaService — video & document edge branches', () => {
+    const audioService = { transcribe: vi.fn() };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        mocks.downloadContentFromMessage.mockResolvedValue(streamFrom([Buffer.from('media')]));
+        mocks.pdfParse.mockResolvedValue({ text: 'PDF body text' });
+        vi.spyOn(Date, 'now').mockReturnValue(1234567890);
+    });
+
+    it('downloads and saves videos as mp4', async () => {
+        const service = new IncomingMediaService(audioService as any);
+
+        const result = await service.process({
+            kind: 'video',
+            text: '[Video]',
+            videoMessage: { mimetype: 'video/mp4' }
+        }, 'Ana');
+
+        expect(mocks.downloadContentFromMessage).toHaveBeenCalledWith(
+            { mimetype: 'video/mp4' }, 'video'
+        );
+        expect(result).toEqual({
+            text: '[Video]',
+            savedMediaPath: join(MEDIA_DIR, 'video', 'video_1234567890.mp4')
+        });
+    });
+
+    it('saves webm videos with the webm extension', async () => {
+        const service = new IncomingMediaService(audioService as any);
+
+        const result = await service.process({
+            kind: 'video',
+            text: '',
+            videoMessage: { mimetype: 'video/webm;codecs=vp9' }
+        }, 'Ana');
+
+        expect(result.savedMediaPath).toBe(join(MEDIA_DIR, 'video', 'video_1234567890.webm'));
+        // No fallback text -> readable placeholder with the saved path.
+        expect(result.text).toContain('[Video received:');
+    });
+
+    it('returns a readable fallback when the video download fails', async () => {
+        const service = new IncomingMediaService(audioService as any);
+        mocks.downloadContentFromMessage.mockRejectedValue(new Error('too big'));
+
+        await expect(service.process({
+            kind: 'video',
+            text: '[Video]',
+            videoMessage: {}
+        }, 'Ana')).resolves.toEqual({ text: '[Video download failed]' });
+    });
+
+    it('reports document download failures with the file name', async () => {
+        const service = new IncomingMediaService(audioService as any);
+        mocks.downloadContentFromMessage.mockRejectedValue(new Error('expired'));
+
+        const result = await service.process({
+            kind: 'document',
+            text: '',
+            documentMessage: { fileName: 'report.pdf', mimetype: 'application/pdf' }
+        }, 'Ana');
+
+        expect(result).toEqual({ text: '[Document: report.pdf (download failed)]' });
+    });
+
+    it('shows the PDF fallback notice when no text could be extracted', async () => {
+        const service = new IncomingMediaService(audioService as any);
+        mocks.pdfParse.mockResolvedValueOnce({ text: '   \n  ' });
+
+        const result = await service.process({
+            kind: 'document',
+            text: '',
+            documentMessage: { fileName: 'scan.pdf', mimetype: 'application/pdf' }
+        }, 'Ana');
+
+        expect(result.text).toContain('PDF text was not extracted automatically');
+        expect(result.text).not.toContain('PDF body text');
+    });
+
+    it('includes short PDF previews verbatim (no truncation marker)', async () => {
+        const service = new IncomingMediaService(audioService as any);
+
+        const result = await service.process({
+            kind: 'document',
+            text: '',
+            documentMessage: { fileName: 'short.pdf', mimetype: 'application/pdf' }
+        }, 'Ana');
+
+        expect(result.text).toContain('PDF body text');
+        expect(result.text.endsWith('…')).toBe(false);
+    });
+});

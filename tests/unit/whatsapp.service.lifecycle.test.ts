@@ -544,3 +544,214 @@ describe('WhatsAppService — socket lifecycle', () => {
         });
     });
 });
+
+describe('WhatsAppService — edge branches', () => {
+    const boot = async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        const service = new WhatsAppService(sessionManager as any);
+        await service.start();
+        return { service, sessionManager, socket: baileysMocks.sockets[0] };
+    };
+
+    beforeEach(() => {
+        resetI18n();
+        baileysMocks.reset();
+        vi.clearAllMocks();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('start() is a no-op while a reconnect is already in flight', async () => {
+        vi.useFakeTimers();
+        const { service } = await boot();
+        const socket = baileysMocks.sockets[0];
+
+        // Crash the socket -> reconnect scheduled.
+        await socket.handlers.get('connection.update')!({
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 428 }, message: 'connection lost' } }
+        });
+
+        // A start() while reconnecting must not dial a second socket.
+        await service.start();
+        expect(baileysMocks.sockets.length).toBe(1);
+
+        await service.stop();
+    });
+
+    it('scheduled reconnect does not fire after an intentional stop', async () => {
+        vi.useFakeTimers();
+        const { service } = await boot();
+        const socket = baileysMocks.sockets[0];
+
+        await socket.handlers.get('connection.update')!({
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 428 }, message: 'connection lost' } }
+        });
+        await service.stop();
+
+        await vi.advanceTimersByTimeAsync(120_000);
+        expect(baileysMocks.sockets.length).toBe(1); // no redial
+    });
+
+    it('handles non-object and Error-instance disconnect errors', async () => {
+        vi.useFakeTimers();
+        const { service, sessionManager } = await boot();
+        const socket = baileysMocks.sockets[0];
+
+        // undefined lastDisconnect -> statusCode undefined -> treated as retryable.
+        await socket.handlers.get('connection.update')!({ connection: 'close' });
+
+        await vi.advanceTimersByTimeAsync(120_000);
+        expect(baileysMocks.sockets.length).toBeGreaterThan(1);
+
+        await service.stop();
+    });
+
+    it('setQRCodeCallback routes QR payloads to the registered callback', async () => {
+        const { service, socket } = await boot();
+        const qrSpy = vi.fn();
+        service.setQRCodeCallback(qrSpy);
+
+        await socket.handlers.get('connection.update')!({
+            connection: 'connecting',
+            qr: 'QR-PAYLOAD'
+        });
+
+        expect(qrSpy).toHaveBeenCalledWith('QR-PAYLOAD');
+        await service.stop();
+    });
+
+    it('sendMenuMessage skips the π suffix when the signature is empty', async () => {
+        process.env.WHATSAPP_PI_TEST_ALLOWLIST = '';
+        const { service, sessionManager } = await boot();
+        (sessionManager as any).getAgentSignature.mockReturnValue('');
+
+        const result = await (service as any).sendMenuMessage(
+            '+33684136128@s.whatsapp.net', 'hello'
+        );
+
+        expect(result.success).toBe(true);
+        const sent = baileysMocks.sockets[0].sendMessage.mock.calls[0][1];
+        expect(sent.text).not.toContain('π');
+        await service.stop();
+    });
+
+    it('deleteAuthState tolerates storage failures', async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        (sessionManager as any).deleteAuthState = vi.fn().mockRejectedValue(new Error('disk full'));
+        const service = new WhatsAppService(sessionManager as any);
+
+        // Must not throw.
+        await expect((service as any).logout()).resolves.toBeUndefined();
+    });
+});
+
+describe('WhatsAppService — send failure paths', () => {
+    beforeEach(() => {
+        resetI18n();
+        baileysMocks.reset();
+        vi.clearAllMocks();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    it('sendMenuMessage reports the underlying send failure', async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        const service = new WhatsAppService(sessionManager as any);
+        await service.start();
+
+        // Force the socket send to reject.
+        baileysMocks.sockets[0].sendMessage.mockRejectedValue(new Error('stale session'));
+
+        const result = await (service as any).sendMenuMessage(
+            '+33684136128@s.whatsapp.net', 'hello'
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBeTruthy();
+
+        await service.stop();
+    });
+});
+
+describe('WhatsAppService — accessors & verbose paths', () => {
+    beforeEach(() => {
+        resetI18n();
+        baileysMocks.reset();
+        vi.clearAllMocks();
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('exposes accessors: getSocket, getOperatorJid, setLogger', async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        const service = new WhatsAppService(sessionManager as any);
+
+        expect(service.getSocket()).toBeUndefined();
+        expect(service.getOperatorJid()).toBe('');
+
+        const fakeLogger = { log: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() };
+        (service as any).setLogger(fakeLogger);
+        expect((service as any).logger).toBe(fakeLogger);
+    });
+
+    it('getEffectiveStatus downgrades connected-without-socket to disconnected', async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        sessionManager.getStatus.mockReturnValue('connected');
+        const service = new WhatsAppService(sessionManager as any);
+
+        // No start() -> no socket.
+        expect(service.getEffectiveStatus()).toBe('disconnected');
+    });
+
+    it('resolveOutboundRecipientJid normalizes bare numbers and keeps JIDs', async () => {
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const service = new WhatsAppService(createSessionManager() as any);
+
+        expect(service.resolveOutboundRecipientJid('33684136128')).toBe('33684136128@s.whatsapp.net');
+        expect(service.resolveOutboundRecipientJid('+33684136128')).toBe('33684136128@s.whatsapp.net');
+        expect(service.resolveOutboundRecipientJid('120363409409770410@g.us')).toBe('120363409409770410@g.us');
+    });
+
+    it('runs connection lifecycle logging paths in verbose mode', async () => {
+        vi.useFakeTimers();
+        const { WhatsAppService } = await import('../../src/services/whatsapp.service.ts');
+        const sessionManager = createSessionManager();
+        const service = new WhatsAppService(sessionManager as any);
+        (service as any).setVerboseMode(true);
+        await service.start();
+
+        const socket = baileysMocks.sockets[0];
+        // 400 -> auth-rejected -> Session Preserved verbose branches.
+        await expect(socket.handlers.get('connection.update')!({
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 400 }, message: 'bad-request' } }
+        })).resolves.toBeUndefined();
+
+        // Fresh socket; Bad MAC close -> verbose bad-mac branch.
+        await service.start();
+        await baileysMocks.sockets[1].handlers.get('connection.update')!({
+            connection: 'close',
+            lastDisconnect: { error: { output: { statusCode: 500 }, message: 'Bad MAC' } }
+        });
+
+        expect(sessionManager.setStatus).toHaveBeenCalledWith('disconnected');
+
+        await service.stop();
+    });;
+
+});

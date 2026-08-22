@@ -637,3 +637,101 @@ describe('SessionManager — extra coverage', () => {
         });
     });
 });
+
+describe('SessionManager — setters, warnings and parser edge cases', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('round-trips the log size and retention setters with persistence', async () => {
+        const sm = makeManager();
+        await sm.ensureInitialized();
+        f.writeFile.mockClear();
+
+        await sm.setLogMaxSizeMB(12);
+        expect(sm.getLogMaxSizeMB()).toBe(12);
+        expect(f.writeFile).toHaveBeenCalled();
+
+        f.writeFile.mockClear();
+        await sm.setLogRetentionDays(45);
+        expect(sm.getLogRetentionDays()).toBe(45);
+        expect(f.writeFile).toHaveBeenCalled();
+    });
+
+    it('logs validation warnings when a config contains duplicate numbers', async () => {
+        f.readFile.mockImplementation(async (path: string) => {
+            if (path === join(AUTH_DIR, 'creds.json')) return '{}';
+            if (path === CONFIG_PATH) {
+                return JSON.stringify({
+                    status: 'connected',
+                    allowList: [
+                        { number: '+111', name: 'Ana' },
+                        { number: '+111', name: 'Ana bis' }
+                    ]
+                });
+            }
+            throw new Error('ENOENT');
+        });
+
+        const sm = new SessionManager();
+        await sm.ensureInitialized();
+
+        const warningCalls = f.fileLog.mock.calls.filter(
+            (c: any[]) => String(c[0]).includes('validation warnings')
+        );
+        expect(warningCalls.length).toBeGreaterThan(0);
+        expect(String(warningCalls[0][0])).toContain('Duplicate number in allowList');
+    });
+
+    it('parses JSON strings containing escaped quotes and backslashes', async () => {
+        const trickyName = 'Ben "The Boss" \\Admin\\';
+        f.readFile.mockImplementation(async (path: string) => {
+            if (path === join(AUTH_DIR, 'creds.json')) return '{}';
+            if (path === CONFIG_PATH) {
+                return JSON.stringify({
+                    status: 'connected',
+                    allowList: [{ number: '+111', name: trickyName }]
+                });
+            }
+            throw new Error('ENOENT');
+        });
+
+        const sm = new SessionManager();
+        await sm.ensureInitialized();
+
+        expect(sm.getAllowList()[0].name).toBe(trickyName);
+        expect(sm.getStatus()).toBe('connected');
+    });
+
+    it('exposes getValidationWarnings for the current lists', async () => {
+        const sm = makeManager();
+        await sm.ensureInitialized();
+
+        // Clean state -> no warnings.
+        expect(sm.getValidationWarnings()).toEqual([]);
+    });
+
+    it('backfills the alias when migrating a group JID already present in allowedGroups', async () => {
+        // Group JIDs found in allowList are migrated into allowedGroups;
+        // mergeContacts must backfill the name from the migrated entry.
+        f.readFile.mockImplementation(async (path: string) => {
+            if (path === join(AUTH_DIR, 'creds.json')) return '{}';
+            if (path === CONFIG_PATH) {
+                return JSON.stringify({
+                    status: 'connected',
+                    allowList: [{ number: '120363409409770410@g.us', name: 'Family' }],
+                    allowedGroups: [{ number: '120363409409770410@g.us' }]
+                });
+            }
+            throw new Error('ENOENT');
+        });
+
+        const sm = new SessionManager();
+        await sm.ensureInitialized();
+
+        expect(sm.getAllowList()).toHaveLength(0); // migrated out of allowList
+        const groups = sm.getAllowedGroups().filter((c: any) => c.number === '120363409409770410@g.us');
+        expect(groups).toHaveLength(1);
+        expect(groups[0].name).toBe('Family');
+    });
+});

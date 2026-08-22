@@ -175,3 +175,81 @@ describe('allow-list.menu', () => {
 		);
 	});
 });
+
+describe('allow-list.menu — remaining branches', () => {
+    let env: ReturnType<typeof makeEnv>;
+
+    beforeEach(() => {
+        resetI18n();
+        env = makeEnv();
+    });
+
+    it('re-prompts on an unknown list selection', async () => {
+        (env.sessionManager.getAllowList as any).mockReturnValue([{ number: '+111' }]);
+        const ctx = makeCtx({
+            selects: ['ghost', 'Back']
+        });
+
+        await manageAllowList(ctx as any, env);
+
+        // Unknown choice loops back into the list; second pass hits Back.
+        expect(ctx.ui.select).toHaveBeenCalledTimes(2);
+        expect(env.openRootMenu).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-prompts when the send-number input is invalid', async () => {
+        (env.sessionManager.getAllowList as any).mockReturnValue([{ number: '+111' }]);
+        const ctx = makeCtx({
+            selects: [
+                '+111',
+                t('menu.allowed.contact.addNumber'),
+                'not-a-phone',
+                t('menu.allowed.contact.back'),
+                'Back'
+            ],
+            inputs: ['not-a-phone']
+        });
+
+        await manageAllowList(ctx as any, env);
+
+        expect(env.sessionManager.setContactSendNumber).not.toHaveBeenCalled();
+        expect(ctx.ui.notify).toHaveBeenCalledWith(t('menu.allowed.invalidNumber'), 'error');
+    });
+
+    it('delegates History for a contact with a sendNumber option set', async () => {
+        (env.sessionManager.getAllowList as any).mockReturnValue([
+            { number: '+111', sendNumber: '+222' }
+        ]);
+        (env.recentsService.getConversationHistory as any).mockResolvedValue([]);
+        const ctx = makeCtx({
+            selects: [
+                '+111 (+222)',
+                t('menu.allowed.contact.history'),
+                t('menu.allowed.contact.back'),
+                'Back'
+            ]
+        });
+
+        await manageAllowList(ctx as any, env);
+
+        expect(env.recentsService.getConversationHistory).toHaveBeenCalledWith('+111');
+        expect(ctx.ui.notify).toHaveBeenCalledWith(
+            expect.stringContaining('history'), 'info'
+        );
+    });
+
+    it('keeps the contact when removal is declined', async () => {
+        (env.sessionManager.getAllowList as any).mockReturnValue([{ number: '+111' }]);
+        const ctx = makeCtx({
+            selects: ['+111', t('menu.allowed.contact.removeNumber')],
+            confirms: [false]
+        });
+
+        await manageAllowList(ctx as any, env);
+
+        expect(env.sessionManager.removeNumber).not.toHaveBeenCalled();
+        expect(ctx.ui.notify).not.toHaveBeenCalledWith(
+            t('menu.allowed.removed', { displayName: '+111' }), 'info'
+        );
+    });
+});

@@ -228,3 +228,99 @@ describe('MessageSender', () => {
         });
     });
 });
+
+describe('MessageSender — remaining branches', () => {
+    const logger = { info: vi.fn(), log: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const whatsappService = {
+        getStatus: vi.fn(),
+        getSocket: vi.fn(),
+        isVerbose: vi.fn().mockReturnValue(false),
+        getLogger: vi.fn().mockReturnValue(logger),
+        getBrandVisibility: vi.fn().mockReturnValue(true),
+        prepareGroupSession: vi.fn().mockResolvedValue(undefined)
+    };
+
+    beforeEach(() => {
+        resetI18n();
+        vi.clearAllMocks();
+        whatsappService.getStatus.mockReturnValue('connected');
+        whatsappService.getBrandVisibility.mockReturnValue(true);
+        whatsappService.getLogger.mockReturnValue(logger);
+        fsMocks.appendFileSync.mockImplementation(() => {});
+        fsMocks.readFileSync.mockReturnValue(Buffer.from('bin'));
+    });
+
+    it('waitIfOffline throws TIMEOUT when the service stays disconnected', async () => {
+        vi.useFakeTimers();
+        try {
+            whatsappService.getStatus.mockReturnValue('disconnected');
+            const sender = new MessageSender(whatsappService as any);
+
+            const promise = sender.send({ recipientJid: '111@s.whatsapp.net', text: 'hi' } as any);
+            for (let i = 0; i < 35; i++) {
+                await vi.advanceTimersByTimeAsync(1_000);
+            }
+            const result = await promise;
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Timed out');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('stops retrying immediately on a TIMEOUT error', async () => {
+        vi.useFakeTimers();
+        try {
+            // Offline forever -> TIMEOUT on the first wait -> no socket reached.
+            whatsappService.getStatus.mockReturnValue('disconnected');
+            const sender = new MessageSender(whatsappService as any);
+
+            const promise = sender.send({ recipientJid: '111@s.whatsapp.net', text: 'hi' } as any);
+            for (let i = 0; i < 35; i++) {
+                await vi.advanceTimersByTimeAsync(1_000);
+            }
+            const result = await promise;
+
+            // TIMEOUT is non-retryable: exactly one failed attempt.
+            expect(result.success).toBe(false);
+            expect(result.attempts).toBe(1);
+            expect(whatsappService.getSocket).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('sendMedia fails cleanly without a socket', async () => {
+        whatsappService.getSocket.mockReturnValue(null);
+        const sender = new MessageSender(whatsappService as any);
+
+        const result = await sender.sendMedia('111@s.whatsapp.net', '/tmp/x.jpg', 'image');
+
+        expect(result.success).toBe(false);
+    });
+
+    it('sendMedia prepares the group session for group recipients', async () => {
+        const socket = { sendMessage: vi.fn().mockResolvedValue({ key: { id: 'G1' } }) };
+        whatsappService.getSocket.mockReturnValue(socket);
+        fsMocks.readFileSync.mockReturnValue(Buffer.from('bin'));
+        const sender = new MessageSender(whatsappService as any);
+
+        const result = await sender.sendMedia('120363409409770410@g.us', '/tmp/x.jpg', 'image');
+
+        expect(whatsappService.prepareGroupSession).toHaveBeenCalledWith(
+            '120363409409770410@g.us', true
+        );
+        expect(result.success).toBe(true);
+    });
+
+    it('group participant helpers fail without a socket', async () => {
+        whatsappService.getSocket.mockReturnValue(null);
+        const sender = new MessageSender(whatsappService as any);
+
+        const add = await sender.addGroupParticipants('123@g.us', ['+111']);
+        const remove = await sender.removeGroupParticipants('123@g.us', ['+111']);
+
+        expect(add.success).toBe(false);
+        expect(remove.success).toBe(false);
+    });
+});

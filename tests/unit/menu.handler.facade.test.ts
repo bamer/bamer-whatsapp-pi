@@ -134,3 +134,107 @@ describe('MenuHandler facade — root dispatch branches', () => {
         expect(whatsappService.logout).not.toHaveBeenCalled();
     });
 });
+
+describe('MenuHandler facade — domain dispatch', () => {
+    beforeEach(() => {
+        resetI18n();
+        vi.clearAllMocks();
+    });
+
+    const boot = async (status = 'connected') => {
+        const whatsappService = {
+            getEffectiveStatus: vi.fn().mockReturnValue(status),
+            setQRCodeCallback: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            logout: vi.fn(),
+            sendMenuMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'M' }),
+            getSocket: vi.fn().mockReturnValue(undefined),
+            getContactsService: vi.fn().mockReturnValue({
+                getCount: vi.fn().mockReturnValue(0),
+                getCountBySource: vi.fn().mockReturnValue(0)
+            })
+        };
+        const sessionManager = {
+            isRegistered: vi.fn().mockResolvedValue(true),
+            getAllowList: vi.fn().mockReturnValue([]),
+            getAllowedGroups: vi.fn().mockReturnValue([]),
+            getUpdateList: vi.fn().mockReturnValue([]),
+            addNumber: vi.fn(),
+            removeNumber: vi.fn(),
+            addAllowedGroup: vi.fn(),
+            removeAllowedGroup: vi.fn(),
+            addUpdateNumber: vi.fn(),
+            removeUpdateNumber: vi.fn(),
+            setAllowedContactAlias: vi.fn(),
+            removeAllowedContactAlias: vi.fn(),
+            setAllowedGroupAlias: vi.fn(),
+            removeAllowedGroupAlias: vi.fn(),
+            setContactSendNumber: vi.fn(),
+            removeContactSendNumber: vi.fn(),
+            isConversationAllowed: vi.fn().mockReturnValue(false),
+            isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
+            getAllowedContact: vi.fn().mockReturnValue(undefined),
+            getAllowedGroup: vi.fn().mockReturnValue(undefined),
+            getBrandVisibility: vi.fn().mockReturnValue(true),
+            setBrandVisibility: vi.fn(),
+            getAutoConnect: vi.fn().mockReturnValue(false),
+            setAutoConnect: vi.fn(),
+            getAssistantName: vi.fn().mockReturnValue('Agent Pi'),
+            setAssistantName: vi.fn(),
+            getAgentSignature: vi.fn().mockReturnValue(''),
+            setAgentSignature: vi.fn(),
+            getLogMaxSizeMB: vi.fn().mockReturnValue(5),
+            setLogMaxSizeMB: vi.fn(),
+            getLogRetentionDays: vi.fn().mockReturnValue(7),
+            setLogRetentionDays: vi.fn()
+        };
+        const recentsService = {
+            getRecentConversations: vi.fn().mockResolvedValue([]),
+            getConversationHistory: vi.fn().mockResolvedValue([]),
+            recordMessage: vi.fn()
+        };
+        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        return { handler, whatsappService, sessionManager, recentsService };
+    };
+
+    const makeCtx = () => ({
+        ui: {
+            select: vi.fn(async (_t: string, options: string[]) => options[0]),
+            confirm: vi.fn(async () => false),
+            input: vi.fn(async () => undefined),
+            notify: vi.fn()
+        }
+    });
+
+    it.each([
+        ['recentsLabel'],
+        ['contactsList'],
+        ['allowedNumbers'],
+        ['allowedGroups'],
+        ['updateTargets'],
+        ['settings'],
+    ])('dispatches the %s entry to its module without crashing', async (key) => {
+        const labels: Record<string, string> = {
+            recentsLabel: t('menu.root.recents'),
+            contactsList: t('menu.root.contactsList'),
+            allowedNumbers: t('menu.root.allowedNumbers'),
+            allowedGroups: t('menu.root.allowedGroups'),
+            updateTargets: t('menu.root.updateTargets'),
+            settings: t('menu.root.settings')
+        };
+        const { handler } = await boot();
+        const ctx = makeCtx();
+        // Every module terminates on Back/last option -> openRootMenu -> Back loop.
+        // We stop after one round by making the second root select return undefined-ish.
+        let calls = 0;
+        ctx.ui.select.mockImplementation(async (_t: string, options: string[]) => {
+            calls++;
+            if (calls > 3) throw new Error('loop guard');
+            // 1: root picks the entry; 2: module Back; 3: root Back.
+            return calls === 1 ? labels[key] : options[options.length - 1];
+        });
+
+        await expect(handler.handleCommand(ctx as any)).resolves.toBeUndefined();
+    });
+});

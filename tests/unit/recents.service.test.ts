@@ -197,3 +197,89 @@ describe('RecentsService', () => {
         ]);
     });
 });
+
+describe('RecentsService — edge branches', () => {
+    const sessionManager = { isConversationAllowed: vi.fn() };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        sessionManager.isConversationAllowed.mockReturnValue(false);
+        fsMocks.readFile.mockRejectedValue(new Error('not found'));
+        vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    });
+
+    it('normalizes bare digits and @s.whatsapp.net numbers, keeps groups as-is', async () => {
+        const service = new RecentsService(sessionManager as any);
+        await service.ensureInitialized();
+
+        await service.recordMessage({
+            messageId: 'A', senderNumber: '33684136128', text: 'bare digits', timestamp: 1_700_000_000_000
+        });
+        await service.recordMessage({
+            messageId: 'B', senderNumber: '33684136128@s.whatsapp.net', text: 'with domain', timestamp: 1_700_000_001_000
+        });
+        await service.recordMessage({
+            messageId: 'C', senderNumber: '120363409409770410@g.us', text: 'group', timestamp: 1_700_000_002_000
+        });
+
+        const conversations = await service.getRecentConversations();
+        const numbers = conversations.map((c) => c.senderNumber);
+        expect(numbers).toContain('+33684136128');
+        expect(numbers).toContain('120363409409770410@g.us');
+        // Both DM variants merged under one normalized number.
+        expect(numbers.filter((n) => n === '+33684136128').length).toBe(1);
+    });
+
+    it('truncates previews longer than 80 characters', async () => {
+        const service = new RecentsService(sessionManager as any);
+        await service.ensureInitialized();
+
+        await service.recordMessage({
+            messageId: 'LONG', senderNumber: '+33684136128',
+            text: 'x'.repeat(120), timestamp: 1_700_000_000_000
+        });
+
+        const [conv] = await service.getRecentConversations();
+        expect(conv.lastMessagePreview).toBe('x'.repeat(77) + '...');
+    });
+
+    it('upgrades second-precision timestamps to milliseconds', async () => {
+        const service = new RecentsService(sessionManager as any);
+        await service.ensureInitialized();
+
+        await service.recordMessage({
+            messageId: 'SEC', senderNumber: '+33684136128',
+            text: 'seconds precision', timestamp: 1_700_000_000 // seconds
+        });
+
+        const [conv] = await service.getRecentConversations();
+        expect(conv.lastMessageTime).toBe(1_700_000_000_000);
+    });
+
+    it('breaks recency ties by sender number order', async () => {
+        const service = new RecentsService(sessionManager as any);
+        await service.ensureInitialized();
+
+        await service.recordMessage({
+            messageId: 'Z', senderNumber: '+9900000001', text: 'zeta', timestamp: 1_700_000_000_000
+        });
+        await service.recordMessage({
+            messageId: 'A', senderNumber: '+1100000001', text: 'alpha', timestamp: 1_700_000_000_000
+        });
+
+        const conversations = await service.getRecentConversations();
+        expect(conversations.map((c) => c.senderNumber)).toEqual(['+1100000001', '+9900000001']);
+    });
+
+    it('reports whether recent conversations exist', async () => {
+        const service = new RecentsService(sessionManager as any);
+        await service.ensureInitialized();
+
+        expect(await service.hasRecentConversations()).toBe(false);
+
+        await service.recordMessage({
+            messageId: 'X', senderNumber: '+33684136128', text: 'hello', timestamp: 1_700_000_000_000
+        });
+        expect(await service.hasRecentConversations()).toBe(true);
+    });
+});
