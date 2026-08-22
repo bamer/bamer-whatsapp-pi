@@ -13,6 +13,11 @@
 - Removed dead code (`getAgentJidCandidates`, `normalizeJidIdentity`).
 
 ### Tests
+- **Blueprint completed: coverage driven from 63% to 92.6%** (439 tests, was 170 with 48 failing)
+- Menu domain modules fully covered: allow-list, groups, update-targets, contacts, recents (pagination Next/Previous), settings, shared helpers, facade root dispatch
+- Extension tools covered: send_wa_message (updateList filter, operator bypass, fire-and-forget proof via deferred promise), send_reaction, send_wa_media, group participants, list_wa_conversations filters
+- Message callback covered: DM/fromMe/operator/group headers, media indicators, image blocks, /compact and /abort commands
+- Session lifecycle covered: incoming recorder wiring, saved-state restore (allowList/groups/status), auto-connect downgrade, footer status with chat counts
 - Test suite overhauled: **335 tests green** (was 122 passing / 48 failing). Stale mocks updated to the v1.9.x codebase (SessionManager class API, LiteParse PDF parser, sherpa-onnx audio pipeline, file-based logger with rotation, storage-path consolidation).
 - Coverage raised from **63% to 78%** overall; whatsapp.service.ts 93%, session.manager.ts 96%, contacts.service/searchable-list/audio/logger/storage-path ~100%.
 - New suites: socket lifecycle (reconnect backoff, auth-rejection handling), incoming message flows (fromMe/LID/groups), sendMenuMessage, prepareGroupSession cache, group participants, media sending.
