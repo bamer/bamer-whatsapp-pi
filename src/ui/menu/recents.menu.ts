@@ -9,6 +9,7 @@ import {
 	buildHistoryOptions,
 	formatGroupedRecentOption,
 	getConversationDisplayName,
+	groupRecentConversations,
 	resolveHistorySelection,
 	sortHistoryByMostRecent,
 } from "./shared.helpers.js";

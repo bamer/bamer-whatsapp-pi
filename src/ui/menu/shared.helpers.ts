@@ -151,7 +151,7 @@ interface GroupedRecentEntry {
 	sharedTime: number;
 }
 
-function getRecentsGroupKey(conversation: RecentConversationSummary): string {
+export function getRecentsGroupKey(conversation: RecentConversationSummary): string {
 	if (conversation.lastMessageDirection === "outgoing") {
 		return `outgoing::${conversation.senderNumber}`;
 	}

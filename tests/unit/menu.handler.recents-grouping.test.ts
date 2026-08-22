@@ -1,11 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MenuHandler } from '../../src/ui/menu.handler.js';
+import {
+    formatGroupedRecentOption,
+    formatRecentConversationOption,
+    getRecentsGroupKey,
+    groupRecentConversations,
+} from '../../src/ui/menu/shared.helpers.js';
+import { manageRecentConversation } from '../../src/ui/menu/recents.menu.js';
 import type { RecentConversationSummary } from '../../src/models/whatsapp.types.js';
 
 vi.mock('qrcode-terminal', () => ({ generate: vi.fn() }));
 
 vi.mock('../../src/ui/message-detail.view.js', () => ({ showMessageDetailView: vi.fn() }));
 vi.mock('../../src/ui/message-reply.view.js', () => ({ showMessageReplyView: vi.fn() }));
+
+// manageRecents is imported by the facade and re-entered by
+// manageRecentConversation; stubbing the module keeps this unit isolated.
+vi.mock('../../src/ui/menu/recents.menu.js', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../src/ui/menu/recents.menu.js')>();
+    return {
+        ...actual,
+        manageRecents: vi.fn().mockResolvedValue(undefined),
+    };
+});
 
 vi.mock('os', () => ({ homedir: () => 'C:\\Users\\test' }));
 vi.mock('fs/promises', () => ({
@@ -53,20 +70,20 @@ describe('MenuHandler — recents grouping helpers', () => {
     });
 
     const groupFn = (convs: RecentConversationSummary[]) =>
-        (handler as any).groupRecentConversations(convs) as Array<{
+        groupRecentConversations(convs) as Array<{
             conversations: RecentConversationSummary[];
             sharedPreview: string;
             sharedTime: number;
         }>;
 
     const keyFn = (conv: RecentConversationSummary) =>
-        (handler as any).getRecentsGroupKey(conv) as string;
+        getRecentsGroupKey(conv) as string;
 
     const fmtFn = (entry: { conversations: RecentConversationSummary[]; sharedPreview: string; sharedTime: number }) =>
-        (handler as any).formatGroupedRecentOption(entry) as string;
+        formatGroupedRecentOption({ sessionManager: mockSessionManager }, entry) as string;
 
     const fmtSingleFn = (conv: RecentConversationSummary) =>
-        (handler as any).formatRecentConversationOption(conv) as string;
+        formatRecentConversationOption({ sessionManager: mockSessionManager }, conv) as string;
 
     describe('getRecentsGroupKey', () => {
         it('produces the same key for two timestamps in the same minute', () => {
@@ -220,9 +237,16 @@ describe('MenuHandler — recents grouping helpers', () => {
             mockSessionManager.isConversationAllowed.mockReturnValue(false);
             mockSessionManager.getAllowedContact.mockReturnValue(undefined);
 
-            vi.spyOn(handler as any, 'manageRecents').mockResolvedValue(undefined);
-
-            await (handler as any).manageRecentConversation(mockCtx, conv);
+            await manageRecentConversation(
+                mockCtx,
+                {
+                    whatsappService: mockWhatsAppService,
+                    sessionManager: mockSessionManager,
+                    recentsService: mockRecentsService,
+                    openRootMenu: vi.fn().mockResolvedValue(undefined),
+                },
+                conv,
+            );
 
             expect(mockSessionManager.addNumber).toHaveBeenCalledWith(senderNumber, 'Alice');
         });
