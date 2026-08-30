@@ -469,8 +469,12 @@ export class WhatsAppService {
         if (!rawId) return;
         const selfJid = this.normalizeJidForComparison(rawId);
         await this.sessionManager.setOperatorJid(selfJid);
+        // Send the operator welcome reminder only once per install — it was
+        // re-spamming on every QR reconnect.
+        if (this.sessionManager.hasSentQrWelcome()) return;
         try {
             await this.socket?.sendMessage(selfJid, { text: t('service.whatsapp.qrWelcomeMessage') });
+            await this.sessionManager.markQrWelcomeSent();
         } catch {
             // Best-effort — welcome send failure must not abort the session.
         }

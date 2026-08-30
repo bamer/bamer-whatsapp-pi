@@ -80,6 +80,7 @@ export class SessionManager {
     private openaiKey: string = '';
     private visionModel: string = 'gpt-4o';
     private operatorJid: string = '';
+    private qrWelcomeSent = false;
     private configLoaded = false;
 
     constructor(baseDir = getDefaultStorageRoot(), legacyBaseDir = baseDir === getDefaultStorageRoot() ? getDefaultLegacyStorageRoot() : baseDir) {
@@ -145,6 +146,7 @@ export class SessionManager {
             this.openaiKey = config.openaiKey || '';
             this.visionModel = config.visionModel || 'gpt-4o';
             this.operatorJid = config.operatorJid || '';
+            this.qrWelcomeSent = Boolean(config.qrWelcomeSent);
             this.autoConnect = Boolean(config.autoConnect);
             this.assistantName = config.assistantName || 'Agent Pi';
             this.agentSignature = config.agentSignature !== undefined ? config.agentSignature : 'π';
@@ -238,6 +240,7 @@ export class SessionManager {
                 openaiKey: this.openaiKey,
                 visionModel: this.visionModel,
                 operatorJid: this.operatorJid,
+                qrWelcomeSent: this.qrWelcomeSent,
                 autoConnect: this.autoConnect,
                 assistantName: this.assistantName,
                 agentSignature: this.agentSignature,
@@ -746,6 +749,15 @@ export class SessionManager {
 
     async setOperatorJid(jid: string) {
         this.operatorJid = jid;
+        await this.saveConfig();
+    }
+
+    hasSentQrWelcome(): boolean {
+        return this.qrWelcomeSent;
+    }
+
+    async markQrWelcomeSent() {
+        this.qrWelcomeSent = true;
         await this.saveConfig();
     }
 

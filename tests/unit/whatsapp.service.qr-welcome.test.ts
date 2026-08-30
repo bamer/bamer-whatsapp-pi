@@ -77,7 +77,9 @@ const createSessionManager = () => ({
     isAllowed: vi.fn().mockReturnValue(true),
     isConversationAllowed: vi.fn().mockReturnValue(true),
     getOperatorJid: vi.fn().mockReturnValue(''),
-    setOperatorJid: vi.fn().mockResolvedValue(undefined)
+    setOperatorJid: vi.fn().mockResolvedValue(undefined),
+    hasSentQrWelcome: vi.fn().mockReturnValue(false),
+    markQrWelcomeSent: vi.fn().mockResolvedValue(undefined)
 });
 
 describe('WhatsAppService QR welcome message', () => {
@@ -111,7 +113,7 @@ describe('WhatsAppService QR welcome message', () => {
         expect(socket.sendMessage).toHaveBeenCalledOnce();
         expect(socket.sendMessage).toHaveBeenCalledWith(
             SELF_JID_NORMALIZED,
-            expect.objectContaining({ text: expect.stringContaining('Send me a message') })
+            expect.objectContaining({ text: expect.stringContaining("You're connected!") })
         );
         // Source logs via fileLog (appendFileSync), not console.log — assert the file line.
         expect(fsMocks.appendFileSync).toHaveBeenCalledWith(
