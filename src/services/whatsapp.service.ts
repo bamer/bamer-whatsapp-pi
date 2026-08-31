@@ -615,10 +615,14 @@ export class WhatsAppService {
         // Skip messages sent by the operator to OTHER contacts.
         // Allow fromMe when remoteJid is in allowList or updateList (linked devices / LID).
         if (message.key.fromMe) {
-            const senderNumber = this.normalizeContactNumber(remoteJid.split('@')[0]);
-            const isAllowed = this.sessionManager.isConversationAllowed(senderNumber);
+            const isGroup = remoteJid.endsWith('@g.us');
+            const isAllowed = isGroup
+                ? this.sessionManager.isAllowedGroup(remoteJid)
+                : this.sessionManager.isConversationAllowed(
+                      this.normalizeContactNumber(remoteJid.split('@')[0])
+                  );
             const isUpdateTarget = await this.sessionManager.isAllowedUpdateTarget(remoteJid);
-            fileLog(`[DEBUG] fromMe: remoteJid=${remoteJid}, senderNumber=${senderNumber}, isAllowed=${isAllowed}, isUpdateTarget=${isUpdateTarget}`);
+            fileLog(`[DEBUG] fromMe: remoteJid=${remoteJid}, isGroup=${isGroup}, isAllowed=${isAllowed}, isUpdateTarget=${isUpdateTarget}`);
             if (!isAllowed && !isUpdateTarget) return;
         }
 
