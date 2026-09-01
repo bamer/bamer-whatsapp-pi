@@ -1073,6 +1073,161 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
+
+  // =========================================================================
+  // Daily tools: weather, pin-up, saying of the day
+  // =========================================================================
+
+  // --- Weather tool (wttr.in free API) ---
+  pi.registerTool({
+    name: "get_weather",
+    label: "Get Weather",
+    description: "Get the current weather for a location. Uses wttr.in free API. Pass a city name or location.",
+    promptSnippet: "get_weather(location) - Get weather for a location. Example: get_weather('Vientiane')",
+    parameters: Type.Object({
+      location: Type.String({
+        description: "City name or location (e.g. 'Vientiane', 'Paris', 'Bangkok')",
+      }),
+    }),
+    async execute(_toolCallId, params) {
+      try {
+        const location = encodeURIComponent(params.location);
+        const response = await fetch(`https://wttr.in/${location}?format=j1`);
+        if (!response.ok) throw new Error(`wttr.in returned ${response.status}`);
+        const data = await response.json();
+
+        const current = data.current_condition?.[0];
+        if (!current) throw new Error('No weather data available');
+
+        const tempC = current.temp_C;
+        const feelsLikeC = current.FeelsLikeC;
+        const desc = current.weatherDesc?.[0]?.value || 'Unknown';
+        const humidity = current.humidity;
+        const windSpeed = current.windspeedKmph;
+
+        return {
+          isError: false,
+          details: undefined,
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              location: data.nearest_area?.[0]?.areaName?.[0]?.value || params.location,
+              temperature: `${tempC}°C`,
+              feelsLike: `${feelsLikeC}°C`,
+              description: desc,
+              humidity: `${humidity}%`,
+              windSpeed: `${windSpeed} km/h`,
+            }),
+          }],
+        };
+      } catch (error) {
+        return {
+          isError: true,
+          details: undefined,
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          }],
+        };
+      }
+    },
+  });
+
+  // --- Pin-up of the day tool ---
+  pi.registerTool({
+    name: "get_pinup_of_the_day",
+    label: "Pin-up of the Day",
+    description: "Get a random pin-up/glamour photo of the day.",
+    promptSnippet: "get_pinup_of_the_day() - Get a random pin-up photo",
+    parameters: Type.Object({}),
+    async execute(_toolCallId) {
+      try {
+        // Use unsplash source for random photos
+        const imageUrl = `https://source.unsplash.com/400x600/?pinup,girl,glamour&sig=${Date.now()}`;
+
+        return {
+          isError: false,
+          details: undefined,
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              imageUrl: imageUrl,
+              caption: 'Pin-up of the day 📸',
+            }),
+          }],
+        };
+      } catch (error) {
+        return {
+          isError: true,
+          details: undefined,
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          }],
+        };
+      }
+    },
+  });
+
+  // --- Saying of the day tool ---
+  pi.registerTool({
+    name: "get_saying_of_the_day",
+    label: "Saying of the Day",
+    description: "Get a random saying, proverb, or quote of the day.",
+    promptSnippet: "get_saying_of_the_day() - Get a random saying or quote",
+    parameters: Type.Object({}),
+    async execute(_toolCallId) {
+      const sayings = [
+        "La vie est belle, mais pas gratuite. 🌸",
+        "Celui qui n'a rien à donner a tout à gagner. 🤝",
+        "Le silence est parfois la meilleure réponse. 🤫",
+        "Chaque jour est une nouvelle chance de changer sa vie. 🌅",
+        "La patience est amère, mais son fruit est doux. 🍯",
+        "Rien ne sert de courir, il faut partir à point. 🐌",
+        "Petit à petit, l'oiseau fait son nid. 🐦",
+        "C'est en forgeant qu'on devient forgeron. 🔨",
+        "Les petites pensées parlent beaucoup, les grandes peu. 💭",
+        "La vie est un mystère qu'il faut vivre, et non un problème à résoudre. ✨",
+        "Le bonheur n'est pas quelque chose de prêt à l'emploi. Il vient de vos propres actions. 😊",
+        "Ce que tu es crie si fort que je n'entends pas ce que tu dis. 🗣️",
+        "L'expérience est un nom que l'on donne à ses erreurs. 📚",
+        "La seule limite à notre réalisation d'aujourd'hui sera nos doutes d'aujourd'hui. 🌟",
+        "Il n'y a qu'une richesse, c'est les hommes. 💎",
+      ];
+
+      const today = new Date();
+      const dayOfYear = Math.floor(
+        (today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const saying = sayings[dayOfYear % sayings.length];
+
+      return {
+        isError: false,
+        details: undefined,
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            success: true,
+            saying: saying,
+            caption: 'Dicton du jour 💬',
+          }),
+        }],
+      };
+    },
+  });
+
+  // =========================================================================
+  // End of daily tools
+  // =========================================================================
+
 	pi.on("session_shutdown", async () => {
 		logger.log(
 			"[WhatsApp-Pi] Session shutdown detected. Stopping WhatsApp service...",
