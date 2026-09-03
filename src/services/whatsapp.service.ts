@@ -189,6 +189,10 @@ export class WhatsAppService {
         return this.sessionManager.getBrandVisibility();
     }
 
+    public getAgentSignature(): string {
+        return this.sessionManager.getAgentSignature();
+    }
+
     public setIncomingMessageRecorder(callback: (message: IncomingMessage) => void | Promise<void>) {
         this.onIncomingMessageRecorded = callback;
     }

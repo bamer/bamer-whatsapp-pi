@@ -76,7 +76,8 @@ export class MessageSender {
                     await this.whatsappService.prepareGroupSession(request.recipientJid, true);
                 }
 
-                const text = this.whatsappService.getBrandVisibility() ? `${request.text} π` : request.text;
+                const signature = this.whatsappService.getAgentSignature();
+                const text = signature ? `${request.text} ${signature}` : request.text;
                 const messageOptions: any = { text };
                 if (request.options?.useCachedGroupMetadata !== undefined) {
                     messageOptions.useCachedGroupMetadata = request.options.useCachedGroupMetadata;

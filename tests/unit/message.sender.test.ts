@@ -22,6 +22,7 @@ describe('MessageSender', () => {
         isVerbose: vi.fn(),
         getLogger: vi.fn().mockReturnValue(logger),
         getBrandVisibility: vi.fn().mockReturnValue(true),
+        getAgentSignature: vi.fn().mockReturnValue('π'),
         prepareGroupSession: vi.fn().mockResolvedValue(undefined)
     };
 
@@ -33,6 +34,7 @@ describe('MessageSender', () => {
         whatsappService.getStatus.mockReturnValue('connected');
         whatsappService.isVerbose.mockReturnValue(false);
         whatsappService.getBrandVisibility.mockReturnValue(true);
+        whatsappService.getAgentSignature.mockReturnValue('π');
         whatsappService.getLogger.mockReturnValue(logger);
         fsMocks.appendFileSync.mockImplementation(() => {});
     });
@@ -56,8 +58,8 @@ describe('MessageSender', () => {
         });
     });
 
-    it('sends unbranded text when brand visibility is disabled', async () => {
-        whatsappService.getBrandVisibility.mockReturnValue(false);
+    it('sends unbranded text when agent signature is empty', async () => {
+        whatsappService.getAgentSignature.mockReturnValue('');
         const sendMessage = vi.fn().mockResolvedValue({ key: { id: 'MSG456' } });
         whatsappService.getSocket.mockReturnValue({ sendMessage });
         const sender = new MessageSender(whatsappService as any);
