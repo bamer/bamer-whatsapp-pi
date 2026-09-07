@@ -1145,10 +1145,28 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "get_pinup_of_the_day() - Get a random pin-up photo",
     parameters: Type.Object({}),
     async execute(_toolCallId) {
+      // Scrape pornpics.com via the local pi-chrome bridge (real Chrome profile).
+      const bridge = 'http://127.0.0.1:17318/command';
+      const cmd = async (action: string, params: Record<string, unknown>, timeoutMs = 20000) => {
+        const res = await fetch(bridge, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, params, timeoutMs }),
+        });
+        const json = (await res.json()) as { ok: boolean; result?: unknown; error?: string };
+        if (!json.ok) throw new Error(json.error || 'bridge command failed');
+        return json.result;
+      };
       try {
-        // Use unsplash source for random photos
-        const imageUrl = `https://source.unsplash.com/400x600/?pinup,girl,glamour&sig=${Date.now()}`;
-
+        await cmd('page.navigate', { url: 'https://www.pornpics.com/' }, 30000);
+        const urls = (await cmd('page.evaluate', {
+          expression:
+            "Array.from(document.querySelectorAll('img'))"
+              + ".map(i => i.currentSrc || i.src || i.dataset.src)"
+              + ".filter(s => s && s.includes('cdni.pornpics.com'))",
+        }, 15000)) as string[];
+        if (!Array.isArray(urls) || urls.length === 0) throw new Error('no images found on page');
+        const pick = urls[Math.floor(Math.random() * urls.length)].replace('/460/', '/1280/');
         return {
           isError: false,
           details: undefined,
@@ -1156,7 +1174,7 @@ export default function (pi: ExtensionAPI) {
             type: 'text' as const,
             text: JSON.stringify({
               success: true,
-              imageUrl: imageUrl,
+              imageUrl: pick,
               caption: 'Pin-up of the day 📸',
             }),
           }],
