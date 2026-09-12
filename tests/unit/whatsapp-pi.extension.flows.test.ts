@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => {
         getLastRemoteJid: vi.fn().mockReturnValue(null),
         getOperatorJid: vi.fn().mockReturnValue(''),
         getSocket: vi.fn().mockReturnValue(null),
+        getGroupSubject: vi.fn().mockReturnValue(undefined),
         getContactsService: vi.fn().mockReturnValue({ getContact: vi.fn() }),
         sendMediaMessage: vi.fn(),
         addGroupParticipants: vi.fn(),
@@ -195,7 +196,7 @@ describe('whatsapp-pi — message callback & session events', () => {
         await messageCallback!(dm('photo envoyée', { key: { fromMe: true } }));
 
         const sent = lastEchoText();
-        expect(sent).toContain('Ben sent to Patrice:');
+        expect(sent).toContain('Ben [you] sent to Patrice:');
         expect(sent).not.toContain('Message from');
         // Outgoing echoes must NOT trigger an assistant turn.
         expect(pi.sendUserMessage).not.toHaveBeenCalled();
@@ -234,7 +235,49 @@ describe('whatsapp-pi — message callback & session events', () => {
         await messageCallback!(payload);
 
         const sent = lastSentText();
-        expect(sent).toContain('Message from Sebastian (56242697425006) in group 120363409409770410@g.us:');
+        expect(sent).toContain('Message from Sebastian (56242697425006@lid) in group 120363409409770410@g.us (group):');
+    });
+
+    it('prefers the real WhatsApp group subject over the stored alias', async () => {
+        mocks.whatsappService.getGroupSubject.mockReturnValue('My py group');
+
+        await messageCallback!({
+            messages: [{
+                key: {
+                    remoteJid: '120363409409770410@g.us',
+                    participant: '56242697425006@lid',
+                    id: 'M3'
+                },
+                message: { conversation: 'salut' },
+                pushName: 'Sebastian'
+            }]
+        });
+
+        expect(lastSentText()).toContain('in group My py group (group):');
+    });
+
+    it('triggers an assistant turn for own messages sent to an allowed group', async () => {
+        await messageCallback!({
+            messages: [{
+                key: {
+                    remoteJid: '120363409409770410@g.us',
+                    participant: '33684136128:0@s.whatsapp.net',
+                    fromMe: true,
+                    id: 'M4'
+                },
+                message: { conversation: 'que réponds-tu ?' },
+                pushName: 'Ben'
+            }]
+        });
+
+        const sent = lastEchoText();
+        expect(sent).toContain('Ben [you, from your phone] sent to 120363409409770410@g.us (group):');
+        // The same message must ALSO be injected as a user prompt so the
+        // assistant replies in the group.
+        expect(pi.sendUserMessage).toHaveBeenCalledWith(
+            expect.stringContaining('que réponds-tu ?'),
+            { deliverAs: 'followUp' }
+        );
     });
 
     it('sends image messages with an image content block', async () => {

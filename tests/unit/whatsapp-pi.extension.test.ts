@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => {
         getLastRemoteJid: vi.fn().mockReturnValue('5511999998888@s.whatsapp.net'),
         getOperatorJid: vi.fn().mockReturnValue(''),
         getSocket: vi.fn().mockReturnValue(null),
+        getGroupSubject: vi.fn().mockReturnValue(undefined),
         getContactsService: vi.fn().mockReturnValue({ fetchContactsFromGroups: vi.fn(), reclassifyContacts: vi.fn() }),
         sendMediaMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MEDIA1' }),
         addGroupParticipants: vi.fn().mockResolvedValue({ success: true }),
@@ -468,7 +469,7 @@ describe('whatsapp-pi extension', () => {
         });
 
         expect(pi.sendUserMessage).toHaveBeenCalledWith(
-            'Message from Ana (5511999998888) in group 120363012345@g.us: hello from whatsapp',
+            'Message from Ana (+5511999998888) in group 120363012345@g.us (group): hello from whatsapp',
             { deliverAs: 'followUp' }
         );
     });

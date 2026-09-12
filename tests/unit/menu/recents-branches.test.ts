@@ -81,13 +81,17 @@ describe('recents.menu — remaining branches', () => {
         it('adds a group to the allow list with its name', async () => {
             const conv = makeConv({
                 senderNumber: '120363409409770410@g.us',
-                senderName: 'Family'
+                senderName: 'Ben'
             });
             (env.sessionManager.isConversationAllowed as any).mockReturnValue(false);
+            // The group name comes from the real WhatsApp subject, NOT from
+            // conversation.senderName (which is the last participant's pushName).
+            (env.whatsappService.fetchGroupSubject as any).mockResolvedValue('Family');
             const ctx = makeCtx({ selects: [ALLOW_GROUP(), t('menu.recents.contact.back')] });
 
             await manageRecentConversation(ctx as any, env, conv);
 
+            expect(env.whatsappService.fetchGroupSubject).toHaveBeenCalledWith('120363409409770410@g.us');
             expect(env.sessionManager.addAllowedGroup).toHaveBeenCalledWith(
                 '120363409409770410@g.us', 'Family'
             );

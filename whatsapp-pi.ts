@@ -72,6 +72,8 @@ function parseJid(jid: string): { user: string; device?: number; server: string;
 	const [main = "", deviceRaw] = local.split(":");
 	const parts = main.split(".");
 	const user = parts[0] || "";
+	// Baileys jidDecode: the device is the segment after ':' (e.g. `num:44@s.whatsapp.net`).
+	// Some LID JIDs also carry a `.N` suffix (`num.0:12@lid`) — used as fallback only.
 	let device: number | undefined =
 		deviceRaw !== undefined ? Number.parseInt(deviceRaw, 10) : undefined;
 	if (device === undefined || !Number.isFinite(device)) {

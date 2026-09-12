@@ -23,7 +23,8 @@ describe('MessageSender', () => {
         getLogger: vi.fn().mockReturnValue(logger),
         getBrandVisibility: vi.fn().mockReturnValue(true),
         getAgentSignature: vi.fn().mockReturnValue('π'),
-        prepareGroupSession: vi.fn().mockResolvedValue(undefined)
+        prepareGroupSession: vi.fn().mockResolvedValue(undefined),
+        recordSentMessage: vi.fn()
     };
 
     beforeEach(() => {

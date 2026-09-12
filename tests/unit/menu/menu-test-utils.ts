@@ -51,7 +51,8 @@ export function makeEnv(overrides: Record<string, any> = {}): MenuEnv {
 				reclassifyContacts: vi.fn().mockReturnValue({ upgraded: 0, total: 0 })
 			}),
 			getSocket: vi.fn().mockReturnValue(undefined),
-			sendMenuMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'M1' })
+			sendMenuMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'M1' }),
+			fetchGroupSubject: vi.fn().mockResolvedValue(undefined)
 		},
 		sessionManager: {
 			getBrandVisibility: vi.fn().mockReturnValue(true),
