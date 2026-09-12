@@ -3,8 +3,8 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-import { Type } from "@sinclair/typebox";
 import { Text } from "@earendil-works/pi-tui";
+import { Type } from "@sinclair/typebox";
 import { initI18n, t } from "./src/i18n.js";
 import { AudioService } from "./src/services/audio.service.js";
 import { IncomingMediaService } from "./src/services/incoming-media.service.js";
@@ -58,6 +58,42 @@ function isPassiveRunMode(ctx: unknown): boolean {
  */
 function shouldStartPolling(ctx: unknown): boolean {
 	return !isPassiveRunMode(ctx);
+}
+
+/**
+ * Parse a WhatsApp JID into its user / device / server parts (Baileys v7 LID-aware).
+ * Handles both `number:device@server` and LID participant forms like `num.0:12@lid`.
+ */
+function parseJid(jid: string): { user: string; device?: number; server: string; isLid: boolean } {
+	if (!jid || !jid.includes("@")) {
+		return { user: jid ?? "", server: "", isLid: false };
+	}
+	const [local = "", server = ""] = jid.split("@");
+	const [main = "", deviceRaw] = local.split(":");
+	const parts = main.split(".");
+	const user = parts[0] || "";
+	let device: number | undefined =
+		deviceRaw !== undefined ? Number.parseInt(deviceRaw, 10) : undefined;
+	if (device === undefined || !Number.isFinite(device)) {
+		device = undefined;
+		const tail = parts.length > 1 ? Number.parseInt(parts[parts.length - 1]!, 10) : Number.NaN;
+		if (Number.isFinite(tail)) device = tail;
+	}
+	return { user, device, server, isLid: server.includes("lid") };
+}
+
+/**
+ * Human-readable label for a message sent by the account owner (fromMe=true).
+ * Baileys puts the sending device in the JID: 0 is the primary phone, other
+ * numbers are linked devices (this extension session included).
+ */
+function describeSelfDevice(device: number | undefined, selfDevice: number | undefined): string {
+	if (device === undefined) return "you";
+	if (selfDevice !== undefined && device === selfDevice) {
+		return "you, from this assistant (extension)";
+	}
+	if (device === 0) return "you, from your phone";
+	return `you, from your linked device #${device}`;
 }
 
 const shutdownState = globalThis as typeof globalThis & {
@@ -215,7 +251,12 @@ export default function (pi: ExtensionAPI) {
 			await recentsService.recordMessage({
 				messageId: message.id,
 				senderNumber,
-				senderName: message.pushName,
+				// For groups, pushName is the *participant* who sent the message,
+				// not the group's name — storing it polluted the group display
+				// name ("Ben sent to Ben (group)"). Use the real subject instead.
+				senderName: isGroup ?
+					whatsappService.getGroupSubject(message.remoteJid)
+				:	message.pushName,
 				text: message.text || "",
 				direction: "incoming",
 				timestamp: message.timestamp,
@@ -327,9 +368,11 @@ export default function (pi: ExtensionAPI) {
 
 		const remoteJid = msg.key.remoteJid;
 		const isGroup = remoteJid?.endsWith("@g.us") || false;
+		const participantJid = msg.key.participant || "";
+		const participantAlt = (msg.key as { participantAlt?: string } | undefined)?.participantAlt;
 		const participant =
 			isGroup ?
-				msg.key.participant?.split("@")[0] || "unknown"
+				participantJid.split("@")[0] || "unknown"
 			:	remoteJid?.split("@")[0] || "unknown";
 		const sender = remoteJid?.split("@")[0] || "unknown";
 		const pushName = msg.pushName || "WhatsApp User";
@@ -386,38 +429,68 @@ export default function (pi: ExtensionAPI) {
 			return jidNumber; // fallback
 		};
 
-		/** Look up a group name from the allowed groups config. */
+		/** Look up a group name: real WhatsApp subject first, stored alias as fallback. */
 		const lookupGroupName = (groupJid: string): string => {
+			const subject = whatsappService.getGroupSubject(groupJid);
+			if (subject) return subject;
 			const g = sessionManager.getAllowedGroups().find((c) => c.number === groupJid);
 			return g?.name || groupJid;
+		};
+
+		/** Device index of this extension's own linked-device session (when connected). */
+		const selfDevice = parseJid(whatsappService.getSocket()?.user?.id ?? "").device;
+		const participantInfo = parseJid(participantJid);
+		const altInfo = parseJid(participantAlt ?? "");
+
+		/**
+		 * Clear sender identity: for own messages, which device sent it (phone,
+		 * linked device, or this extension); for others, their PN (resolved from
+		 * LID when available) plus the device that sent it.
+		 */
+		const describeSender = (): string => {
+			if (isFromMe) {
+				return describeSelfDevice(participantInfo.device, selfDevice);
+			}
+			const pn = altInfo.user ?
+				`+${altInfo.user}`
+			: participantInfo.isLid ?
+				`${participantInfo.user}@lid`
+			:	`+${participantInfo.user || sender}`;
+			return participantInfo.device === undefined ?
+				pn
+			:	`${pn} · device #${participantInfo.device}`;
 		};
 
 		// Outgoing echoes carry no pushName for extension-sent messages; fall back
 		// to the assistant name from settings so it reads "Carl sent to ..." instead
 		// of "WhatsApp User sent to ...".
 		const fromMeName = msg.pushName || sessionManager.getAssistantName();
+		const groupLabel = isGroup ? `${lookupGroupName(remoteJid ?? "")} (group)` : "";
 
 		const messageHeader =
 			isFromMe ?
-				`${fromMeName} sent to ${isGroup ? lookupGroupName(remoteJid ?? "") : lookupName(sender)}${isGroup ? " (group)" : ""}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
+				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
-				`Message from ${pushName} (${participant}) in group ${remoteJid}:`
+				`Message from ${pushName} (${describeSender()}) in group ${groupLabel}:`
 			:	`Message from ${pushName} (${sender}):`;
 
 		logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
 
-		// Outgoing echoes (Ben replying from his own phone) are shown in the chat
-		// for awareness but must NOT trigger an assistant turn — Ben already handled
-		// the reply. Operator self-chat messages still inject as user messages so
-		// /compact and /abort keep working.
+		// Outgoing echoes are shown in the chat for awareness. In 1:1 chats they
+		// must NOT trigger an assistant turn (Ben already handled the reply, and
+		// operator self-chat /compact and /abort still inject below). In groups
+		// the account is shared between Ben's devices and this extension, so a
+		// message Ben writes to an ALLOWED group is a legitimate assistant prompt.
 		if (isFromMe && !isOperator) {
 			pi.sendMessage({
 				customType: "whatsapp-echo",
 				content: `${messageHeader} ${text}`,
 				display: true,
 			});
-			return;
+			if (!isGroup) {
+				return;
+			}
 		}
 
 		// Use a standard delivery for ALL messages to ensure TUI consistency

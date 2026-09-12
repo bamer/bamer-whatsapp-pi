@@ -121,9 +121,20 @@ export async function manageRecentConversation(
 				"info",
 			);
 		} else if (isGroup) {
+			// Do NOT reuse conversation.senderName here: for groups it holds the
+			// pushName of the last message's *participant* (e.g. "Ben"), not the
+			// group name. Fetch the real subject from WhatsApp when possible.
+			let groupSubject: string | undefined;
+			try {
+				groupSubject = await env.whatsappService.fetchGroupSubject(
+					conversation.senderNumber,
+				);
+			} catch {
+				// Socket not available / not connected — fall back to no alias.
+			}
 			await env.sessionManager.addAllowedGroup(
 				conversation.senderNumber,
-				conversation.senderName,
+				groupSubject,
 			);
 			ctx.ui.notify(
 				t("menu.recents.addedGroupToAllowList", {

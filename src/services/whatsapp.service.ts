@@ -4,12 +4,12 @@ import {
     makeCacheableSignalKeyStore,
     makeWASocket
 } from 'baileys';
-import { ContactsService } from './contacts.service.js';
 import { appendFileSync } from 'fs';
 import P from 'pino';
 import { t } from '../i18n.js';
 import { IncomingMessage, MessageResult, SessionStatus } from '../models/whatsapp.types.js';
 import { installBaileysConsoleFilter } from './baileys-console-filter.js';
+import { ContactsService } from './contacts.service.js';
 import { MessageSender } from './message.sender.js';
 import { SessionManager } from './session.manager.js';
 import { createStoragePaths } from './storage-path.js';
@@ -90,6 +90,13 @@ interface BaileysContact {
 	status?: string;
 }
 
+/** Baileys v7 GroupMetadata subset used by this service */
+interface BaileysGroupMetadata {
+    id: string;
+    subject?: string;
+    participants?: Array<{ id: string; phoneNumber?: string }>;
+}
+
 interface WhatsAppSocketLike {
     user?: { id?: string; lid?: string };
     ev: {
@@ -98,6 +105,9 @@ interface WhatsAppSocketLike {
         on(event: 'messages.upsert', handler: (payload: MessagesUpsertEvent) => void | Promise<void>): void;
         on(event: 'contacts.upsert', handler: (contacts: BaileysContact[]) => void | Promise<void>): void;
         on(event: 'contacts.update', handler: (contacts: Partial<BaileysContact>[]) => void | Promise<void>): void;
+    on(event: 'groups.upsert', handler: (groups: BaileysGroupMetadata[]) => void | Promise<void>): void;
+    on(event: 'groups.update', handler: (updates: Partial<BaileysGroupMetadata>[]) => void | Promise<void>): void;
+    on(event: 'group-participants.update', handler: (update: { id: string; participants: unknown[]; action: string }) => void | Promise<void>): void;
 on(event: 'messaging-history.set', handler: (event: { contacts?: BaileysContact[]; messages?: unknown[]; chats?: unknown[]; isLatest?: boolean }) => void | Promise<void>): void;
         removeAllListeners(event: 'connection.update' | 'creds.update' | 'messages.upsert'): void;
     };
@@ -147,6 +157,14 @@ export class WhatsAppService {
     private qrWasShown = false;
     private boundGroupJid: string | null = null;
     private groupMetadataCache: Map<string, { data: { id: string; subject: string; participants: Array<{ id: string }> }; timestamp: number }> = new Map();
+    /** Real WhatsApp group names (subject) learned from groupMetadata / group events. */
+    private groupSubjects: Map<string, string> = new Map();
+    /** Outgoing message content store used by Baileys' getMessage callback (retry/resend). */
+    private recentSentMessages: Map<string, unknown> = new Map();
+    /** Retry-counter cache for failed message decryption (Baileys CacheStore contract). */
+    private msgRetryCounterCache: Map<string, unknown> = new Map();
+    /** Placeholder-resend cache for undecryptable messages (Baileys CacheStore contract). */
+    private placeholderResendCache: Map<string, unknown> = new Map();
     private contactsService: ContactsService;
 
     constructor(sessionManager: SessionManager) {
@@ -348,9 +366,125 @@ export class WhatsAppService {
         });
 
         this.contactsService.attach(socket);
+
+        // Live group metadata sync — Baileys docs recommend refreshing the
+        // cachedGroupMetadata store on these events, otherwise group sessions
+        // go stale and outgoing group messages fail to decrypt on recipients.
+        socket.ev.on('groups.upsert', (groups) => {
+            for (const group of groups) {
+                this.applyGroupMetadata(group as BaileysGroupMetadata);
+            }
+        });
+
+        socket.ev.on('groups.update', (updates) => {
+            void this.handleGroupUpdates(updates);
+        });
+
+        socket.ev.on('group-participants.update', (update) => {
+            void this.refreshGroupMetadata(update.id);
+        });
+
         socket.ev.on('messages.upsert', (payload) => {
             void this.handleIncomingMessages(payload);
         });
+    }
+
+    /** Store a group metadata snapshot into the caches (subject + sender-key cache). */
+    private applyGroupMetadata(metadata: BaileysGroupMetadata) {
+        if (!metadata?.id) return;
+        if (metadata.subject) {
+            const previous = this.groupSubjects.get(metadata.id);
+            if (previous !== metadata.subject) {
+                this.groupSubjects.set(metadata.id, metadata.subject);
+                this.syncStoredGroupAlias(metadata.id, metadata.subject, previous);
+            }
+        }
+        this.groupMetadataCache.set(metadata.id, {
+            data: metadata as { id: string; subject: string; participants: Array<{ id: string }> },
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Keep the locally stored group alias in sync with the real WhatsApp subject:
+     * only overwrite when the alias was empty or equals the previous subject
+     * (i.e. it was never a manually-set custom alias).
+     */
+    private syncStoredGroupAlias(groupJid: string, subject: string, previousSubject?: string) {
+        const stored = this.sessionManager.getAllowedGroup(groupJid);
+        if (!stored) return;
+        if (!stored.name || stored.name === previousSubject) {
+            void this.sessionManager.setAllowedGroupAlias(groupJid, subject);
+        }
+    }
+
+    private async handleGroupUpdates(updates: Partial<BaileysGroupMetadata>[]) {
+        for (const update of updates) {
+            if (!update?.id) continue;
+            // groups.update delivers partial metadata; refetch the full snapshot
+            // so the sender-key cache stays complete (per Baileys documentation).
+            const refreshed = await this.refreshGroupMetadata(update.id);
+            if (!refreshed && update.subject) {
+                this.applyGroupMetadata({ id: update.id, subject: update.subject });
+            }
+        }
+    }
+
+    /** Refetch full metadata for one group and refresh caches. Returns the subject when known. */
+    private async refreshGroupMetadata(jid: string): Promise<string | undefined> {
+        const socket = this.getActiveSocket();
+        if (!socket || !jid.endsWith('@g.us')) return undefined;
+        try {
+            const metadata = await socket.groupMetadata(jid);
+            this.applyGroupMetadata(metadata as BaileysGroupMetadata);
+            return metadata?.subject;
+        } catch (error) {
+            if (this.verboseMode) {
+                fileLog(`[WhatsApp-Pi] Failed to refresh group metadata for ${jid}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            return undefined;
+        }
+    }
+
+    /** Fetch all groups the account participates in and sync names + metadata cache. */
+    public async refreshGroupSubjects(): Promise<void> {
+        const socket = this.getActiveSocket();
+        if (!socket) return;
+        try {
+            const groups = await socket.groupFetchAllParticipating();
+            const values = Object.values(groups ?? {}) as BaileysGroupMetadata[];
+            for (const group of values) {
+                this.applyGroupMetadata(group);
+            }
+            if (this.verboseMode) {
+                fileLog(`[WhatsApp-Pi] Synced ${values.length} group names from WhatsApp`);
+            }
+        } catch (error) {
+            if (this.verboseMode) {
+                fileLog(`[WhatsApp-Pi] Failed to sync group names: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    }
+
+    /** Fetch fresh metadata for one group (used when allowing a group from the UI). */
+    public async fetchGroupSubject(jid: string): Promise<string | undefined> {
+        return this.refreshGroupMetadata(jid);
+    }
+
+    /** Real WhatsApp group name (subject) when known. */
+    public getGroupSubject(jid: string): string | undefined {
+        return this.groupSubjects.get(jid);
+    }
+
+    /** Record an outgoing message so Baileys can resend it on retry requests. */
+    public recordSentMessage(remoteJid: string, messageId: string | undefined, content: unknown) {
+        if (!messageId) return;
+        this.recentSentMessages.set(`${remoteJid}|${messageId}`, content);
+        // Keep the store bounded — retries only concern recent messages.
+        if (this.recentSentMessages.size > 200) {
+            const firstKey = this.recentSentMessages.keys().next().value;
+            if (firstKey !== undefined) this.recentSentMessages.delete(firstKey);
+        }
     }
 
     private async createSocket(): Promise<WhatsAppSocketLike> {
@@ -371,6 +505,39 @@ export class WhatsAppService {
             },
             syncFullHistory: false,
             logger,
+            // Linked-device reliability: without these, undecryptable messages stay
+            // stuck as "waiting for this message" on recipients' devices.
+            markOnlineOnConnect: false,
+            enableAutoSessionRecreation: true,
+            enableRecentMessageCache: true,
+            msgRetryCounterCache: {
+                get: (key: string) => this.msgRetryCounterCache.get(key) as any,
+                set: (key: string, value: unknown) => {
+                    this.msgRetryCounterCache.set(key, value);
+                },
+                del: (key: string) => {
+                    this.msgRetryCounterCache.delete(key);
+                },
+                flushAll: () => {
+                    this.msgRetryCounterCache.clear();
+                },
+            },
+            placeholderResendCache: {
+                get: (key: string) => this.placeholderResendCache.get(key) as any,
+                set: (key: string, value: unknown) => {
+                    this.placeholderResendCache.set(key, value);
+                },
+                del: (key: string) => {
+                    this.placeholderResendCache.delete(key);
+                },
+                flushAll: () => {
+                    this.placeholderResendCache.clear();
+                },
+            },
+            getMessage: async (key: { remoteJid?: string | null; id?: string | null }) => {
+                const storeKey = `${key.remoteJid ?? ''}|${key.id ?? ''}`;
+                return this.recentSentMessages.get(storeKey) as any;
+            },
             cachedGroupMetadata: async (jid: string) => {
                 const entry = groupMetadataCache.get(jid);
                 return entry?.data as any;
@@ -459,6 +626,10 @@ export class WhatsAppService {
         await this.sessionManager.markAuthStateAvailable();
         await this.sessionManager.setStatus('connected');
         this.onStatusUpdate?.(t('service.whatsapp.connected'));
+
+        // Sync real group names (subjects) right after connecting so display
+        // never falls back to stale/incorrect local aliases.
+        void this.refreshGroupSubjects();
 
         if (this.qrWasShown) {
             this.qrWasShown = false;
@@ -776,6 +947,7 @@ const messageOptions: any = { text };
             await this.sendPresence(normalizedJid, 'composing');
             const response = await socket.sendMessage(normalizedJid, messageOptions);
             await this.sendPresence(normalizedJid, 'paused');
+            this.recordSentMessage(normalizedJid, response?.key?.id, messageOptions);
 
             return {
                 success: true,

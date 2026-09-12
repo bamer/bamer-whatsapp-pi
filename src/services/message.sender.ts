@@ -1,5 +1,4 @@
-import { appendFileSync } from 'fs';
-import { readFileSync } from 'fs';
+import { appendFileSync, readFileSync } from 'fs';
 import { t } from '../i18n.js';
 import { MessageRequest, MessageResult, WhatsAppError } from '../models/whatsapp.types.js';
 import { createStoragePaths } from './storage-path.js';
@@ -84,6 +83,7 @@ export class MessageSender {
                 }
                 fileLog(`[SEND] Calling socket.sendMessage to ${request.recipientJid}, useCachedGroupMetadata=${messageOptions.useCachedGroupMetadata}`);
                 const response = await socket.sendMessage(request.recipientJid, messageOptions);
+                this.whatsappService.recordSentMessage(request.recipientJid, response?.key?.id, messageOptions);
                 fileLog(`[SEND] Response: key=${JSON.stringify(response?.key || {})}`);
                 fileLog(`[SEND] Response full: ${JSON.stringify(response || {}).substring(0, 500)}`);
 
@@ -159,6 +159,7 @@ export class MessageSender {
                 if (caption) content.caption = caption;
 
                 const response = await socket.sendMessage(recipientJid, content);
+                this.whatsappService.recordSentMessage(recipientJid, response?.key?.id, content);
                 fileLog(`SUCCESS sending ${type} to ${recipientJid} on attempt ${attempts}`);
                 return { success: true, messageId: response?.key?.id, attempts };
             } catch (error) {
