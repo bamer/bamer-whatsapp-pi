@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1] - 2026-09-11
+
+### Fixed
+- **Outgoing echo sender name**: extension-sent messages now fall back to `assistantName` ("Carl") instead of "WhatsApp User".
+- **Group target clarity**: outgoing messages to a group now show the group name + `(group)` marker instead of the raw JID.
+- **No auto-reply to own replies**: `fromMe` echoes (Ben replying from his phone) are now rendered as passive muted echoes and no longer trigger an assistant turn. Operator self-chat `/compact` and `/abort` commands still work.
+
 ## [1.12.0] - 2026-08-22
 
 ### Tests
