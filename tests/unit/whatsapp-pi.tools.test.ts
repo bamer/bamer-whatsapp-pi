@@ -116,7 +116,9 @@ const createMockPi = () => {
         getFlag: vi.fn().mockReturnValue(false),
         appendEntry: vi.fn(),
         exec: vi.fn().mockResolvedValue({ code: 0 }),
-        sendUserMessage: vi.fn()
+        sendUserMessage: vi.fn(),
+        sendMessage: vi.fn(),
+        registerMessageRenderer: vi.fn()
     };
 };
 

@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => {
         getUpdateList: vi.fn().mockReturnValue([]),
         getAutoConnect: vi.fn().mockReturnValue(false),
         isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
-        setGroupJidForAuth: vi.fn()
+        setGroupJidForAuth: vi.fn(),
+        getAssistantName: vi.fn().mockReturnValue('Carl')
     });
 
     const createWhatsAppService = () => ({
@@ -106,7 +107,9 @@ const createMockPi = () => {
         getFlag: vi.fn().mockReturnValue(false),
         appendEntry: vi.fn(),
         exec: vi.fn().mockResolvedValue({ code: 0 }),
-        sendUserMessage: vi.fn()
+        sendUserMessage: vi.fn(),
+        sendMessage: vi.fn(),
+        registerMessageRenderer: vi.fn()
     };
 };
 
@@ -169,6 +172,11 @@ describe('whatsapp-pi — message callback & session events', () => {
         return calls[calls.length - 1][0];
     };
 
+    const lastEchoText = (): string => {
+        const calls = pi.sendMessage.mock.calls;
+        return calls[calls.length - 1][0].content;
+    };
+
     it('formats an incoming DM with the standard header', async () => {
         await messageCallback!(dm('couleur du ciel ?'));
 
@@ -186,9 +194,11 @@ describe('whatsapp-pi — message callback & session events', () => {
 
         await messageCallback!(dm('photo envoyée', { key: { fromMe: true } }));
 
-        const sent = lastSentText();
+        const sent = lastEchoText();
         expect(sent).toContain('Ben sent to Patrice:');
         expect(sent).not.toContain('Message from');
+        // Outgoing echoes must NOT trigger an assistant turn.
+        expect(pi.sendUserMessage).not.toHaveBeenCalled();
     });
 
     it('adds a media indicator for fromMe image messages', async () => {
@@ -197,7 +207,7 @@ describe('whatsapp-pi — message callback & session events', () => {
 
         await messageCallback!(dm('Photo', { key: { fromMe: true } }));
 
-        expect(lastSentText()).toContain('📷 Photo');
+        expect(lastEchoText()).toContain('📷 Photo');
     });
 
     it('formats operator messages with the [Operator] prefix', async () => {

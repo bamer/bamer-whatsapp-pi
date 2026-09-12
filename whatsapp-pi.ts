@@ -4,6 +4,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import { Type } from "@sinclair/typebox";
+import { Text } from "@earendil-works/pi-tui";
 import { initI18n, t } from "./src/i18n.js";
 import { AudioService } from "./src/services/audio.service.js";
 import { IncomingMediaService } from "./src/services/incoming-media.service.js";
@@ -87,6 +88,19 @@ export default function (pi: ExtensionAPI) {
 			"Bind this agent to a specific WhatsApp group JID (e.g. 120363012345@g.us). When set, only messages from this group are processed.",
 		type: "string",
 		default: "",
+	});
+
+	// Render outgoing echoes (Ben's own replies) as plain muted text so they are
+	// visible in the chat without looking like an incoming message that needs a reply.
+	pi.registerMessageRenderer("whatsapp-echo", (message, _options, theme) => {
+		const text =
+			typeof message.content === "string" ?
+				message.content
+			:	message.content
+					.filter((c) => c.type === "text")
+					.map((c) => c.text)
+					.join("\n");
+		return new Text(theme.fg("muted", text), 0, 0);
 	});
 
 	const sessionManager = new SessionManager();
@@ -372,14 +386,39 @@ export default function (pi: ExtensionAPI) {
 			return jidNumber; // fallback
 		};
 
+		/** Look up a group name from the allowed groups config. */
+		const lookupGroupName = (groupJid: string): string => {
+			const g = sessionManager.getAllowedGroups().find((c) => c.number === groupJid);
+			return g?.name || groupJid;
+		};
+
+		// Outgoing echoes carry no pushName for extension-sent messages; fall back
+		// to the assistant name from settings so it reads "Carl sent to ..." instead
+		// of "WhatsApp User sent to ...".
+		const fromMeName = msg.pushName || sessionManager.getAssistantName();
+
 		const messageHeader =
-			isFromMe ? `${pushName} sent to ${lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
+			isFromMe ?
+				`${fromMeName} sent to ${isGroup ? lookupGroupName(remoteJid ?? "") : lookupName(sender)}${isGroup ? " (group)" : ""}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${participant}) in group ${remoteJid}:`
 			:	`Message from ${pushName} (${sender}):`;
 
 		logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
+
+		// Outgoing echoes (Ben replying from his own phone) are shown in the chat
+		// for awareness but must NOT trigger an assistant turn — Ben already handled
+		// the reply. Operator self-chat messages still inject as user messages so
+		// /compact and /abort keep working.
+		if (isFromMe && !isOperator) {
+			pi.sendMessage({
+				customType: "whatsapp-echo",
+				content: `${messageHeader} ${text}`,
+				display: true,
+			});
+			return;
+		}
 
 		// Use a standard delivery for ALL messages to ensure TUI consistency
 		if (imageBuffer && imageMimeType) {
