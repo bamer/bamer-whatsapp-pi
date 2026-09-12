@@ -411,10 +411,14 @@ export class WhatsAppService {
      * (i.e. it was never a manually-set custom alias).
      */
     private syncStoredGroupAlias(groupJid: string, subject: string, previousSubject?: string) {
-        const stored = this.sessionManager.getAllowedGroup(groupJid);
-        if (!stored) return;
-        if (!stored.name || stored.name === previousSubject) {
-            void this.sessionManager.setAllowedGroupAlias(groupJid, subject);
+        try {
+            const stored = this.sessionManager.getAllowedGroup(groupJid);
+            if (!stored) return;
+            if (!stored.name || stored.name === previousSubject) {
+                void this.sessionManager.setAllowedGroupAlias(groupJid, subject);
+            }
+        } catch {
+            // Alias sync is best-effort — never break group metadata handling.
         }
     }
 

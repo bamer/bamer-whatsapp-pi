@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.12.2] - 2026-09-12
+
+### Fixed
+- **Group display name**: the header now shows the real WhatsApp group name (`groupMetadata.subject`), not a stale local alias. Previously a group allowed via Recents inherited the last message's `pushName` as its "name" — hence "Ben sent to Ben (group)" instead of "My py group".
+- **Group rename sync**: new `groups.upsert` / `groups.update` / `group-participants.update` listeners keep the group metadata cache (sender keys) and stored aliases in sync with WhatsApp, per Baileys v7 recommended setup. Names are also synced from `groupFetchAllParticipating()` on every connect.
+- **"Waiting for this message"**: `makeWASocket` now wires the linked-device reliability options recommended by Baileys 7 — `getMessage` (outgoing message store for retries), `msgRetryCounterCache`, `placeholderResendCache`, `enableAutoSessionRecreation`, `enableRecentMessageCache`, `markOnlineOnConnect: false`. Undecryptable messages now trigger automatic session recreation instead of staying stuck.
+  - **Note**: after upgrading Baileys to v7 (LID addressing), a one-time re-pairing (Disconnect → Connect → scan QR) is still required to rebuild pre-v7 sessions.
+- **Assistant replies in allowed groups**: own (`fromMe`) messages sent to an allowed group now trigger an assistant turn again (they were muted since 1.12.1). 1:1 `fromMe` messages remain passive echoes; operator self-chat `/compact` and `/abort` still work.
+
+### Changed
+- **Sender identification via JIDs** (Baileys v7 LID-aware): message headers now resolve who/what sent a message:
+  - own messages: `Ben [you, from your phone] sent to My py group (group):` / `[you, from your linked device #N]` / `[you, from this assistant (extension)]`
+  - other participants: `Message from Sebastian (+33612345678 · device #2) in group My py group (group):` — the phone number is resolved from the LID via `participantAlt` when available, otherwise the `@lid` JID is shown.
+- Recents: group conversations no longer store a participant's `pushName` as the group name; allowing a group from Recents fetches the real subject from WhatsApp.
+
 ## [1.12.1] - 2026-09-11
 
 ### Fixed

@@ -372,10 +372,6 @@ export default function (pi: ExtensionAPI) {
 		const isGroup = remoteJid?.endsWith("@g.us") || false;
 		const participantJid = msg.key.participant || "";
 		const participantAlt = (msg.key as { participantAlt?: string } | undefined)?.participantAlt;
-		const participant =
-			isGroup ?
-				participantJid.split("@")[0] || "unknown"
-			:	remoteJid?.split("@")[0] || "unknown";
 		const sender = remoteJid?.split("@")[0] || "unknown";
 		const pushName = msg.pushName || "WhatsApp User";
 

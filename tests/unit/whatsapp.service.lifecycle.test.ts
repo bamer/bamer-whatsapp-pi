@@ -32,6 +32,7 @@ const baileysMocks = vi.hoisted(() => {
                 id: '120363409409770410@g.us',
                 participants: [{ id: 'a@s.whatsapp.net' }, { jid: 'b@s.whatsapp.net' }]
             }),
+            groupFetchAllParticipating: vi.fn().mockResolvedValue({}),
             end: vi.fn(),
             ev: {
                 on: vi.fn((event: string, handler: (event: any) => Promise<void>) => {
@@ -90,6 +91,8 @@ const createSessionManager = () => ({
     getOperatorJid: vi.fn().mockReturnValue(''),
     setOperatorJid: vi.fn().mockResolvedValue(undefined),
     getAllowedContact: vi.fn().mockReturnValue(undefined),
+    getAllowedGroup: vi.fn().mockReturnValue(undefined),
+    setAllowedGroupAlias: vi.fn().mockResolvedValue(undefined),
     trackIgnoredNumber: vi.fn().mockResolvedValue(undefined),
     isAllowedGroup: vi.fn().mockReturnValue(true)
 });
@@ -477,7 +480,79 @@ describe('WhatsAppService — socket lifecycle', () => {
 
             await expect(config.cachedGroupMetadata('g@g.us')).resolves.toEqual(metadata);
             await expect(config.cachedGroupMetadata('unknown@g.us')).resolves.toBeUndefined();
+        });
 
+        it('createSocket wires linked-device reliability options', async () => {
+            const { service } = await boot();
+
+            const config = baileysMocks.makeWASocket.mock.calls[0][0];
+            expect(config.enableAutoSessionRecreation).toBe(true);
+            expect(config.enableRecentMessageCache).toBe(true);
+            expect(config.markOnlineOnConnect).toBe(false);
+            expect(typeof config.getMessage).toBe('function');
+            // getMessage returns recorded outgoing messages keyed by remoteJid|id.
+            (service as any).recentSentMessages.set('g@g.us|MSG1', { text: 'hello' });
+            await expect(config.getMessage({ remoteJid: 'g@g.us', id: 'MSG1' })).resolves.toEqual({ text: 'hello' });
+            await expect(config.getMessage({ remoteJid: 'g@g.us', id: 'OTHER' })).resolves.toBeUndefined();
+
+            await service.stop();
+        });
+
+        it('group subject sync: upsert/update events learn names and keep the metadata cache fresh', async () => {
+            const { service, socket } = await boot();
+            socket.groupMetadata.mockResolvedValue({
+                id: 'g1@g.us',
+                subject: 'Renamed Group',
+                participants: [{ id: 'a@s.whatsapp.net' }]
+            });
+
+            // groups.upsert carries full metadata.
+            await socket.handlers.get('groups.upsert')!([{ id: 'g0@g.us', subject: 'First' }]);
+            expect(service.getGroupSubject('g0@g.us')).toBe('First');
+
+            // groups.update is partial: the service refetches full metadata.
+            await socket.handlers.get('groups.update')!([{ id: 'g1@g.us', subject: 'Renamed Group' }]);
+            expect(service.getGroupSubject('g1@g.us')).toBe('Renamed Group');
+            expect((service as any).groupMetadataCache.get('g1@g.us')?.data.participants).toEqual([{ id: 'a@s.whatsapp.net' }]);
+
+            // group-participants.update also refreshes the metadata snapshot.
+            await socket.handlers.get('group-participants.update')!({ id: 'g1@g.us', participants: [], action: 'add' });
+            expect(socket.groupMetadata).toHaveBeenCalledWith('g1@g.us');
+
+            await service.stop();
+        });
+
+        it('subject change syncs the stored alias only when it tracks the previous subject', async () => {
+            const { service, sessionManager, socket } = await boot();
+            sessionManager.getAllowedGroup.mockReturnValue({ number: 'g2@g.us', name: 'Old Subject' });
+            socket.groupMetadata
+                .mockResolvedValueOnce({ id: 'g2@g.us', subject: 'New Subject', participants: [] })
+                .mockResolvedValue({ id: 'g2@g.us', subject: 'Newer Subject', participants: [] });
+
+            // First sync: previous subject unknown → a pre-existing alias is
+            // considered manual and left untouched (conservative).
+            await socket.handlers.get('groups.update')!([{ id: 'g2@g.us', subject: 'New Subject' }]);
+            expect(sessionManager.setAllowedGroupAlias).not.toHaveBeenCalled();
+
+            // Alias equals the previously-known subject → it tracks WhatsApp's
+            // subject and must be updated when the group is renamed.
+            sessionManager.setAllowedGroupAlias.mockClear();
+            sessionManager.getAllowedGroup.mockReturnValue({ number: 'g2@g.us', name: 'New Subject' });
+            await socket.handlers.get('groups.update')!([{ id: 'g2@g.us', subject: 'Newer Subject' }]);
+            expect(sessionManager.setAllowedGroupAlias).toHaveBeenCalledWith('g2@g.us', 'Newer Subject');
+
+            await service.stop();
+        });
+
+        it('refreshGroupSubjects syncs names from groupFetchAllParticipating on connect', async () => {
+            const { service, socket } = await boot();
+            socket.groupFetchAllParticipating.mockResolvedValue({
+                'g3@g.us': { id: 'g3@g.us', subject: 'My py group', participants: [] }
+            });
+
+            await service.refreshGroupSubjects();
+
+            expect(service.getGroupSubject('g3@g.us')).toBe('My py group');
             await service.stop();
         });
 
