@@ -1323,9 +1323,23 @@ export default function (pi: ExtensionAPI) {
 				return json.result;
 			};
 			try {
+				// Rotate the search query daily so the photo pool changes every day.
+				const queries = [
+					"skinny+petite+asian",
+					"skinny+teen",
+					"anal+petite+asian",
+					"retro+pinup",
+					"asian+beauty",
+					"blonde+glamour",
+					"brunette+glamour",
+					"petite+lingerie",
+					"pinup+stockings",
+					"glamour+model",
+				];
+				const dayIdx = Math.floor(Date.now() / 86400000) % queries.length;
 				await cmd(
 					"page.navigate",
-					{ url: "https://www.pornpics.com/?q=skinny+petite+asian" },
+					{ url: `https://www.pornpics.com/?q=${queries[dayIdx]}` },
 					30000,
 				);
 				const urls = (await cmd(
