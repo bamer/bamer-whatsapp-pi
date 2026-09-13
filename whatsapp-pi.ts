@@ -64,7 +64,12 @@ function shouldStartPolling(ctx: unknown): boolean {
  * Parse a WhatsApp JID into its user / device / server parts (Baileys v7 LID-aware).
  * Handles both `number:device@server` and LID participant forms like `num.0:12@lid`.
  */
-function parseJid(jid: string): { user: string; device?: number; server: string; isLid: boolean } {
+function parseJid(jid: string): {
+	user: string;
+	device?: number;
+	server: string;
+	isLid: boolean;
+} {
 	if (!jid || !jid.includes("@")) {
 		return { user: jid ?? "", server: "", isLid: false };
 	}
@@ -78,7 +83,10 @@ function parseJid(jid: string): { user: string; device?: number; server: string;
 		deviceRaw !== undefined ? Number.parseInt(deviceRaw, 10) : undefined;
 	if (device === undefined || !Number.isFinite(device)) {
 		device = undefined;
-		const tail = parts.length > 1 ? Number.parseInt(parts[parts.length - 1]!, 10) : Number.NaN;
+		const tail =
+			parts.length > 1 ?
+				Number.parseInt(parts[parts.length - 1]!, 10)
+			:	Number.NaN;
 		if (Number.isFinite(tail)) device = tail;
 	}
 	return { user, device, server, isLid: server.includes("lid") };
@@ -89,7 +97,10 @@ function parseJid(jid: string): { user: string; device?: number; server: string;
  * Baileys puts the sending device in the JID: 0 is the primary phone, other
  * numbers are linked devices (this extension session included).
  */
-function describeSelfDevice(device: number | undefined, selfDevice: number | undefined): string {
+function describeSelfDevice(
+	device: number | undefined,
+	selfDevice: number | undefined,
+): string {
 	if (device === undefined) return "you";
 	if (selfDevice !== undefined && device === selfDevice) {
 		return "you, from this assistant (extension)";
@@ -256,9 +267,10 @@ export default function (pi: ExtensionAPI) {
 				// For groups, pushName is the *participant* who sent the message,
 				// not the group's name — storing it polluted the group display
 				// name ("Ben sent to Ben (group)"). Use the real subject instead.
-				senderName: isGroup ?
-					whatsappService.getGroupSubject(message.remoteJid)
-				:	message.pushName,
+				senderName:
+					isGroup ?
+						whatsappService.getGroupSubject(message.remoteJid)
+					:	message.pushName,
 				text: message.text || "",
 				direction: "incoming",
 				timestamp: message.timestamp,
@@ -371,7 +383,8 @@ export default function (pi: ExtensionAPI) {
 		const remoteJid = msg.key.remoteJid;
 		const isGroup = remoteJid?.endsWith("@g.us") || false;
 		const participantJid = msg.key.participant || "";
-		const participantAlt = (msg.key as { participantAlt?: string } | undefined)?.participantAlt;
+		const participantAlt = (msg.key as { participantAlt?: string } | undefined)
+			?.participantAlt;
 		const sender = remoteJid?.split("@")[0] || "unknown";
 		const pushName = msg.pushName || "WhatsApp User";
 
@@ -395,14 +408,14 @@ export default function (pi: ExtensionAPI) {
 
 		// Media indicator for outgoing messages
 		const mediaIndicator =
-			resolved.kind === 'image' ? '📷 Photo'
-			: resolved.kind === 'video' ? '🎥 Video'
-			: resolved.kind === 'audio' ? '🎤 Audio'
-			: resolved.kind === 'document' ? '📄 Document'
-			: resolved.kind === 'contact' ? '👤 Contact'
-			: resolved.kind === 'location' ? '📍 Location'
-			: resolved.kind === 'reaction' ? '❤️ Reaction'
-			: '';
+			resolved.kind === "image" ? "📷 Photo"
+			: resolved.kind === "video" ? "🎥 Video"
+			: resolved.kind === "audio" ? "🎤 Audio"
+			: resolved.kind === "document" ? "📄 Document"
+			: resolved.kind === "contact" ? "👤 Contact"
+			: resolved.kind === "location" ? "📍 Location"
+			: resolved.kind === "reaction" ? "❤️ Reaction"
+			: "";
 
 		// Format message header: clear direction (sent vs received)
 		const operatorJid = whatsappService.getOperatorJid();
@@ -418,11 +431,19 @@ export default function (pi: ExtensionAPI) {
 			try {
 				const cs = whatsappService.getContactsService();
 				const contact = cs.getContact(clean);
-				if (contact?.name || contact?.notify) return contact.name || contact.notify!;
-			} catch { /* contacts not ready */ }
+				if (contact?.name || contact?.notify)
+					return contact.name || contact.notify!;
+			} catch {
+				/* contacts not ready */
+			}
 			// Check allowList / updateList
-			const all = [...sessionManager.getAllowList(), ...sessionManager.getUpdateList()];
-			const found = all.find((c) => c.number === clean || c.number === jidNumber);
+			const all = [
+				...sessionManager.getAllowList(),
+				...sessionManager.getUpdateList(),
+			];
+			const found = all.find(
+				(c) => c.number === clean || c.number === jidNumber,
+			);
 			if (found?.name) return found.name;
 			return jidNumber; // fallback
 		};
@@ -431,12 +452,16 @@ export default function (pi: ExtensionAPI) {
 		const lookupGroupName = (groupJid: string): string => {
 			const subject = whatsappService.getGroupSubject(groupJid);
 			if (subject) return subject;
-			const g = sessionManager.getAllowedGroups().find((c) => c.number === groupJid);
+			const g = sessionManager
+				.getAllowedGroups()
+				.find((c) => c.number === groupJid);
 			return g?.name || groupJid;
 		};
 
 		/** Device index of this extension's own linked-device session (when connected). */
-		const selfDevice = parseJid(whatsappService.getSocket()?.user?.id ?? "").device;
+		const selfDevice = parseJid(
+			whatsappService.getSocket()?.user?.id ?? "",
+		).device;
 		const participantInfo = parseJid(participantJid);
 		const altInfo = parseJid(participantAlt ?? "");
 
@@ -449,25 +474,25 @@ export default function (pi: ExtensionAPI) {
 			if (isFromMe) {
 				return describeSelfDevice(participantInfo.device, selfDevice);
 			}
-			const pn = altInfo.user ?
-				`+${altInfo.user}`
-			: participantInfo.isLid ?
-				`${participantInfo.user}@lid`
-			:	`+${participantInfo.user || sender}`;
+			const pn =
+				altInfo.user ? `+${altInfo.user}`
+				: participantInfo.isLid ? `${participantInfo.user}@lid`
+				: `+${participantInfo.user || sender}`;
 			return participantInfo.device === undefined ?
-				pn
-			:	`${pn} · device #${participantInfo.device}`;
+					pn
+				:	`${pn} · device #${participantInfo.device}`;
 		};
 
 		// Outgoing echoes carry no pushName for extension-sent messages; fall back
 		// to the assistant name from settings so it reads "Carl sent to ..." instead
 		// of "WhatsApp User sent to ...".
 		const fromMeName = msg.pushName || sessionManager.getAssistantName();
-		const groupLabel = isGroup ? `${lookupGroupName(remoteJid ?? "")} (group)` : "";
+		const groupLabel =
+			isGroup ? `${lookupGroupName(remoteJid ?? "")} (group)` : "";
 
 		const messageHeader =
 			isFromMe ?
-				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ''}:`
+				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ""}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${describeSender()}) in group ${groupLabel}:`
@@ -514,7 +539,9 @@ export default function (pi: ExtensionAPI) {
 
 			if (_ctx) {
 				_ctx.compact();
-				whatsappService.sendMessage(remoteJid!, "Session compacted successfully! ✅").catch(() => {});
+				whatsappService
+					.sendMessage(remoteJid!, "Session compacted successfully! ✅")
+					.catch(() => {});
 			}
 			return;
 		}
@@ -1162,199 +1189,246 @@ export default function (pi: ExtensionAPI) {
 
 			if (outboundJid && text) {
 				// Fire-and-forget: don't block conversation
-				recentsService.recordMessage({
-					messageId: `pending-${Date.now()}`,
-					senderNumber: toRecentSenderNumber(outboundJid),
-					text,
-					direction: "outgoing",
-					timestamp: Date.now(),
-				}).catch(() => {});
+				recentsService
+					.recordMessage({
+						messageId: `pending-${Date.now()}`,
+						senderNumber: toRecentSenderNumber(outboundJid),
+						text,
+						direction: "outgoing",
+						timestamp: Date.now(),
+					})
+					.catch(() => {});
 
-				whatsappService.sendMessage(outboundJid, text).then((result) => {
-					if (result.success) {
-						ctx.ui.notify(`[message_end] SENT to ${outboundJid}`, "info");
-					} else {
-						ctx.ui.notify(`[message_end] FAILED to ${outboundJid}: ${result.error}`, "error");
-					}
-				}).catch((err) => {
-					ctx.ui.notify(`[message_end] ERROR sending to ${outboundJid}: ${err}`, "error");
-				});
+				whatsappService
+					.sendMessage(outboundJid, text)
+					.then((result) => {
+						if (result.success) {
+							ctx.ui.notify(`[message_end] SENT to ${outboundJid}`, "info");
+						} else {
+							ctx.ui.notify(
+								`[message_end] FAILED to ${outboundJid}: ${result.error}`,
+								"error",
+							);
+						}
+					})
+					.catch((err) => {
+						ctx.ui.notify(
+							`[message_end] ERROR sending to ${outboundJid}: ${err}`,
+							"error",
+						);
+					});
 			}
 		}
 	});
 
+	// =========================================================================
+	// Daily tools: weather, pin-up, saying of the day
+	// =========================================================================
 
-  // =========================================================================
-  // Daily tools: weather, pin-up, saying of the day
-  // =========================================================================
+	// --- Weather tool (wttr.in free API) ---
+	pi.registerTool({
+		name: "get_weather",
+		label: "Get Weather",
+		description:
+			"Get the current weather for a location. Uses wttr.in free API. Pass a city name or location.",
+		promptSnippet:
+			"get_weather(location) - Get weather for a location. Example: get_weather('Vientiane')",
+		parameters: Type.Object({
+			location: Type.String({
+				description:
+					"City name or location (e.g. 'Vientiane', 'Paris', 'Bangkok')",
+			}),
+		}),
+		async execute(_toolCallId, params) {
+			try {
+				const location = encodeURIComponent(params.location);
+				const response = await fetch(`https://wttr.in/${location}?format=j1`);
+				if (!response.ok)
+					throw new Error(`wttr.in returned ${response.status}`);
+				const data = await response.json();
 
-  // --- Weather tool (wttr.in free API) ---
-  pi.registerTool({
-    name: "get_weather",
-    label: "Get Weather",
-    description: "Get the current weather for a location. Uses wttr.in free API. Pass a city name or location.",
-    promptSnippet: "get_weather(location) - Get weather for a location. Example: get_weather('Vientiane')",
-    parameters: Type.Object({
-      location: Type.String({
-        description: "City name or location (e.g. 'Vientiane', 'Paris', 'Bangkok')",
-      }),
-    }),
-    async execute(_toolCallId, params) {
-      try {
-        const location = encodeURIComponent(params.location);
-        const response = await fetch(`https://wttr.in/${location}?format=j1`);
-        if (!response.ok) throw new Error(`wttr.in returned ${response.status}`);
-        const data = await response.json();
+				const current = data.current_condition?.[0];
+				if (!current) throw new Error("No weather data available");
 
-        const current = data.current_condition?.[0];
-        if (!current) throw new Error('No weather data available');
+				const tempC = current.temp_C;
+				const feelsLikeC = current.FeelsLikeC;
+				const desc = current.weatherDesc?.[0]?.value || "Unknown";
+				const humidity = current.humidity;
+				const windSpeed = current.windspeedKmph;
 
-        const tempC = current.temp_C;
-        const feelsLikeC = current.FeelsLikeC;
-        const desc = current.weatherDesc?.[0]?.value || 'Unknown';
-        const humidity = current.humidity;
-        const windSpeed = current.windspeedKmph;
+				return {
+					isError: false,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: true,
+								location:
+									data.nearest_area?.[0]?.areaName?.[0]?.value ||
+									params.location,
+								temperature: `${tempC}°C`,
+								feelsLike: `${feelsLikeC}°C`,
+								description: desc,
+								humidity: `${humidity}%`,
+								windSpeed: `${windSpeed} km/h`,
+							}),
+						},
+					],
+				};
+			} catch (error) {
+				return {
+					isError: true,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: false,
+								error: error instanceof Error ? error.message : String(error),
+							}),
+						},
+					],
+				};
+			}
+		},
+	});
 
-        return {
-          isError: false,
-          details: undefined,
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              success: true,
-              location: data.nearest_area?.[0]?.areaName?.[0]?.value || params.location,
-              temperature: `${tempC}°C`,
-              feelsLike: `${feelsLikeC}°C`,
-              description: desc,
-              humidity: `${humidity}%`,
-              windSpeed: `${windSpeed} km/h`,
-            }),
-          }],
-        };
-      } catch (error) {
-        return {
-          isError: true,
-          details: undefined,
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-            }),
-          }],
-        };
-      }
-    },
-  });
+	// --- Pin-up of the day tool ---
+	pi.registerTool({
+		name: "get_pinup_of_the_day",
+		label: "Pin-up of the Day",
+		description: "Get a random pin-up/glamour photo of the day.",
+		promptSnippet: "get_pinup_of_the_day() - Get a random pin-up photo",
+		parameters: Type.Object({}),
+		async execute(_toolCallId) {
+			// Scrape pornpics.com via the local pi-chrome bridge (real Chrome profile).
+			const bridge = "http://127.0.0.1:17318/command";
+			const cmd = async (
+				action: string,
+				params: Record<string, unknown>,
+				timeoutMs = 20000,
+			) => {
+				const res = await fetch(bridge, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ action, params, timeoutMs }),
+				});
+				const json = (await res.json()) as {
+					ok: boolean;
+					result?: unknown;
+					error?: string;
+				};
+				if (!json.ok) throw new Error(json.error || "bridge command failed");
+				return json.result;
+			};
+			try {
+				await cmd(
+					"page.navigate",
+					{ url: "https://www.pornpics.com/?q=skinny+petite+asian" },
+					30000,
+				);
+				const urls = (await cmd(
+					"page.evaluate",
+					{
+						expression:
+							"Array.from(document.querySelectorAll('img'))" +
+							".map(i => i.currentSrc || i.src || i.dataset.src)" +
+							".filter(s => s && s.includes('cdni.pornpics.com'))",
+					},
+					15000,
+				)) as string[];
+				if (!Array.isArray(urls) || urls.length === 0)
+					throw new Error("no images found on page");
+				const pick = urls[Math.floor(Math.random() * urls.length)].replace(
+					"/460/",
+					"/1280/",
+				);
+				return {
+					isError: false,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: true,
+								imageUrl: pick,
+								caption: "Pin-up of the day 📸",
+							}),
+						},
+					],
+				};
+			} catch (error) {
+				return {
+					isError: true,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: false,
+								error: error instanceof Error ? error.message : String(error),
+							}),
+						},
+					],
+				};
+			}
+		},
+	});
 
-  // --- Pin-up of the day tool ---
-  pi.registerTool({
-    name: "get_pinup_of_the_day",
-    label: "Pin-up of the Day",
-    description: "Get a random pin-up/glamour photo of the day.",
-    promptSnippet: "get_pinup_of_the_day() - Get a random pin-up photo",
-    parameters: Type.Object({}),
-    async execute(_toolCallId) {
-      // Scrape pornpics.com via the local pi-chrome bridge (real Chrome profile).
-      const bridge = 'http://127.0.0.1:17318/command';
-      const cmd = async (action: string, params: Record<string, unknown>, timeoutMs = 20000) => {
-        const res = await fetch(bridge, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, params, timeoutMs }),
-        });
-        const json = (await res.json()) as { ok: boolean; result?: unknown; error?: string };
-        if (!json.ok) throw new Error(json.error || 'bridge command failed');
-        return json.result;
-      };
-      try {
-        await cmd('page.navigate', { url: 'https://www.pornpics.com/' }, 30000);
-        const urls = (await cmd('page.evaluate', {
-          expression:
-            "Array.from(document.querySelectorAll('img'))"
-              + ".map(i => i.currentSrc || i.src || i.dataset.src)"
-              + ".filter(s => s && s.includes('cdni.pornpics.com'))",
-        }, 15000)) as string[];
-        if (!Array.isArray(urls) || urls.length === 0) throw new Error('no images found on page');
-        const pick = urls[Math.floor(Math.random() * urls.length)].replace('/460/', '/1280/');
-        return {
-          isError: false,
-          details: undefined,
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              success: true,
-              imageUrl: pick,
-              caption: 'Pin-up of the day 📸',
-            }),
-          }],
-        };
-      } catch (error) {
-        return {
-          isError: true,
-          details: undefined,
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-            }),
-          }],
-        };
-      }
-    },
-  });
+	// --- Saying of the day tool ---
+	pi.registerTool({
+		name: "get_saying_of_the_day",
+		label: "Saying of the Day",
+		description: "Get a random saying, proverb, or quote of the day.",
+		promptSnippet: "get_saying_of_the_day() - Get a random saying or quote",
+		parameters: Type.Object({}),
+		async execute(_toolCallId) {
+			const sayings = [
+				"La vie est belle, mais pas gratuite. 🌸",
+				"Celui qui n'a rien à donner a tout à gagner. 🤝",
+				"Le silence est parfois la meilleure réponse. 🤫",
+				"Chaque jour est une nouvelle chance de changer sa vie. 🌅",
+				"La patience est amère, mais son fruit est doux. 🍯",
+				"Rien ne sert de courir, il faut partir à point. 🐌",
+				"Petit à petit, l'oiseau fait son nid. 🐦",
+				"C'est en forgeant qu'on devient forgeron. 🔨",
+				"Les petites pensées parlent beaucoup, les grandes peu. 💭",
+				"La vie est un mystère qu'il faut vivre, et non un problème à résoudre. ✨",
+				"Le bonheur n'est pas quelque chose de prêt à l'emploi. Il vient de vos propres actions. 😊",
+				"Ce que tu es crie si fort que je n'entends pas ce que tu dis. 🗣️",
+				"L'expérience est un nom que l'on donne à ses erreurs. 📚",
+				"La seule limite à notre réalisation d'aujourd'hui sera nos doutes d'aujourd'hui. 🌟",
+				"Il n'y a qu'une richesse, c'est les hommes. 💎",
+			];
 
-  // --- Saying of the day tool ---
-  pi.registerTool({
-    name: "get_saying_of_the_day",
-    label: "Saying of the Day",
-    description: "Get a random saying, proverb, or quote of the day.",
-    promptSnippet: "get_saying_of_the_day() - Get a random saying or quote",
-    parameters: Type.Object({}),
-    async execute(_toolCallId) {
-      const sayings = [
-        "La vie est belle, mais pas gratuite. 🌸",
-        "Celui qui n'a rien à donner a tout à gagner. 🤝",
-        "Le silence est parfois la meilleure réponse. 🤫",
-        "Chaque jour est une nouvelle chance de changer sa vie. 🌅",
-        "La patience est amère, mais son fruit est doux. 🍯",
-        "Rien ne sert de courir, il faut partir à point. 🐌",
-        "Petit à petit, l'oiseau fait son nid. 🐦",
-        "C'est en forgeant qu'on devient forgeron. 🔨",
-        "Les petites pensées parlent beaucoup, les grandes peu. 💭",
-        "La vie est un mystère qu'il faut vivre, et non un problème à résoudre. ✨",
-        "Le bonheur n'est pas quelque chose de prêt à l'emploi. Il vient de vos propres actions. 😊",
-        "Ce que tu es crie si fort que je n'entends pas ce que tu dis. 🗣️",
-        "L'expérience est un nom que l'on donne à ses erreurs. 📚",
-        "La seule limite à notre réalisation d'aujourd'hui sera nos doutes d'aujourd'hui. 🌟",
-        "Il n'y a qu'une richesse, c'est les hommes. 💎",
-      ];
+			const today = new Date();
+			const dayOfYear = Math.floor(
+				(today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) /
+					(1000 * 60 * 60 * 24),
+			);
+			const saying = sayings[dayOfYear % sayings.length];
 
-      const today = new Date();
-      const dayOfYear = Math.floor(
-        (today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const saying = sayings[dayOfYear % sayings.length];
+			return {
+				isError: false,
+				details: undefined,
+				content: [
+					{
+						type: "text" as const,
+						text: JSON.stringify({
+							success: true,
+							saying: saying,
+							caption: "Dicton du jour 💬",
+						}),
+					},
+				],
+			};
+		},
+	});
 
-      return {
-        isError: false,
-        details: undefined,
-        content: [{
-          type: 'text' as const,
-          text: JSON.stringify({
-            success: true,
-            saying: saying,
-            caption: 'Dicton du jour 💬',
-          }),
-        }],
-      };
-    },
-  });
-
-  // =========================================================================
-  // End of daily tools
-  // =========================================================================
+	// =========================================================================
+	// End of daily tools
+	// =========================================================================
 
 	pi.on("session_shutdown", async () => {
 		logger.log(

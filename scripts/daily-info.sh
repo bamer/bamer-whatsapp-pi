@@ -41,7 +41,7 @@ print(saying)
 ")
 
 # Fetch pin-up from PornPics
-curl -s -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" "https://www.pornpics.com/?q=skinny+girl+anal" -o /tmp/pinup-page.html
+curl -s -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" "https://www.pornpics.com/?q=skinny+asian+petite" -o /tmp/pinup-page.html
 IMAGES=$(grep -oP 'href="\Khttps://[^"]*\.jpg' /tmp/pinup-page.html | sort -u)
 RANDOM_IMAGE=$(echo "$IMAGES" | shuf -n 1)
 curl -s -o /tmp/pinup-today.jpg "$RANDOM_IMAGE"
