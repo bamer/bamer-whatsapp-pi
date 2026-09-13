@@ -366,7 +366,7 @@ describe('whatsapp-pi extension', () => {
         expect(mocks.whatsappService.markRead).toHaveBeenCalledWith('5511999998888@s.whatsapp.net', 'WA1', false);
         expect(mocks.whatsappService.sendPresence).toHaveBeenCalledWith('5511999998888@s.whatsapp.net', 'composing');
         expect(pi.sendUserMessage).toHaveBeenCalledWith(
-            'Message from Ana (5511999998888): hello from whatsapp',
+            'Direct message from Ana (5511999998888): hello from whatsapp',
             { deliverAs: 'followUp' }
         );
     });

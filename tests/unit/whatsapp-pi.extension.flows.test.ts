@@ -182,7 +182,7 @@ describe('whatsapp-pi — message callback & session events', () => {
         await messageCallback!(dm('couleur du ciel ?'));
 
         const sent = lastSentText();
-        expect(sent).toContain('Message from Ben (33684136128):');
+        expect(sent).toContain('Direct message from Ben (33684136128):');
         expect(sent).toContain('couleur du ciel ?');
         expect(mocks.whatsappService.markRead).toHaveBeenCalled();
         expect(mocks.whatsappService.sendPresence).toHaveBeenCalledWith(expect.anything(), 'composing');
@@ -196,7 +196,7 @@ describe('whatsapp-pi — message callback & session events', () => {
         await messageCallback!(dm('photo envoyée', { key: { fromMe: true } }));
 
         const sent = lastEchoText();
-        expect(sent).toContain('Ben [you] sent to Patrice:');
+        expect(sent).toContain('Ben [you] sent to Patrice (DM):');
         expect(sent).not.toContain('Message from');
         // Outgoing echoes must NOT trigger an assistant turn.
         expect(pi.sendUserMessage).not.toHaveBeenCalled();
@@ -291,7 +291,7 @@ describe('whatsapp-pi — message callback & session events', () => {
 
         const call = pi.sendUserMessage.mock.calls[pi.sendUserMessage.mock.calls.length - 1];
         const blocks = call[0];
-        expect(blocks[0].text).toContain('Message from Ben');
+        expect(blocks[0].text).toContain('Direct message from Ben');
         expect(blocks[1]).toMatchObject({ type: 'image', mimeType: 'image/jpeg' });
     });
 

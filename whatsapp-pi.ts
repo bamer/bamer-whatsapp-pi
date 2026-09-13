@@ -492,11 +492,11 @@ export default function (pi: ExtensionAPI) {
 
 		const messageHeader =
 			isFromMe ?
-				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : lookupName(sender)}${mediaIndicator ? ` ${mediaIndicator}` : ""}:`
+				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : `${lookupName(sender)} (DM)`}${mediaIndicator ? ` ${mediaIndicator}` : ""}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
 				`Message from ${pushName} (${describeSender()}) in group ${groupLabel}:`
-			:	`Message from ${pushName} (${sender}):`;
+			:	`Direct message from ${pushName} (${sender}):`;
 
 		logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
 
