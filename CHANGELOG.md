@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.3] - 2026-09-13
+
+### Fixed
+- **Explicit DM vs group in message headers**: incoming DMs now read "Direct message from X" (was "Message from X") and outgoing DMs carry a "(DM)" marker, so group vs direct context is never ambiguous for the assistant.
+
 ## [1.12.2] - 2026-09-12
 
 ### Fixed
