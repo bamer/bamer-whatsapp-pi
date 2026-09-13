@@ -1330,11 +1330,11 @@ export default function (pi: ExtensionAPI) {
 					"anal+petite+asian",
 					"retro+pinup",
 					"asian+beauty",
-					"blonde+glamour",
-					"brunette+glamour",
-					"petite+lingerie",
-					"pinup+stockings",
-					"glamour+model",
+					"petite+asian+double",
+					"skinny+brunette+glamour",
+					"petite+deep",
+					"petite+asian+facial",
+					"petite+asian+full",
 				];
 				const dayIdx = Math.floor(Date.now() / 86400000) % queries.length;
 				await cmd(
