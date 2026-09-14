@@ -6,32 +6,44 @@ Get a daily pin-up/glamour photo from PornPics and send it via WhatsApp.
 
 - User asks for "pin-up du jour", "pinup", "photo du jour", "pin-up"
 - User wants a daily glamour photo sent via WhatsApp
-- Triggered by `/pinup` or natural language requests
+- Triggered by the `daily-info-ben` cron job at 08:00
 
 ## Procedure
 
-### Step 1: Fetch Random Photo from PornPics
+### Step 1: Choose Rotating Query
 
-1. Use `curl` to fetch the PornPics search page:
-
-```bash
-curl -s -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" "https://www.pornpics.com/?q=skinny+asian+petite" -o /tmp/pinup-page.html
-```
-
-1. Extract image URLs from preload links and pick a random one:
+1. Calculate day of year and select query from rotating pool:
 
 ```bash
-# Get list of image URLs from preload links
-IMAGES=$(grep -oP 'href="\Khttps://[^"]*\.jpg' /tmp/pinup-page.html | sort -u)
-
-# Pick random one (different each time)
-RANDOM_IMAGE=$(echo "$IMAGES" | shuf -n 1)
-
-# Download it
-curl -s -o /tmp/pinup-today.jpg "$RANDOM_IMAGE"
+# 10 rotating queries (day of year % 10 selects one)
+QUERIES=("skinny+petite+asian" "skinny+teen" "anal+petite+asian" "petite+chinese+beauty" "asian+beauty" "petite+asian+double" "skinny+brunette+beauty" "petite+deep" "petite+asian+facial" "petite+asian+full")
+QIDX=$(( $(date +%j) % 10 ))
+QUERY="${QUERIES[$QIDX]}"
 ```
 
-### Step 2: Verify Image
+1. Fetch the PornPics search page with the EXACT selected query:
+
+```bash
+curl -s -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" "https://www.pornpics.com/?q=$QUERY" -o /tmp/pinup-page.html
+```
+
+### Step 2: Extract ALL Image URLs and Pick Random
+
+1. Extract ALL `cdni.pornpics.com` URLs from the full HTML (not just href links):
+
+```bash
+# Extract every cdni.pornpics.com URL, deduplicate, pick one at random
+RANDOM_IMAGE=$(grep -oP 'https://cdni\.pornpics\.com/[^"'"'"' ]*\.jpg' /tmp/pinup-page.html | sort -u | shuf -n 1)
+```
+
+1. Upgrade to high resolution (1280px instead of 460px):
+
+```bash
+HIGH_RES="${RANDOM_IMAGE/\/460\//\/1280\/}"
+curl -s -o /tmp/pinup-today.jpg "$HIGH_RES"
+```
+
+### Step 3: Verify Image
 
 Check the downloaded file is actually an image:
 
@@ -40,7 +52,7 @@ file /tmp/pinup-today.jpg
 # Should return: JPEG image data, ...
 ```
 
-### Step 3: Send via WhatsApp
+### Step 4: Send via WhatsApp
 
 Use the `send_wa_media` tool:
 
@@ -56,12 +68,15 @@ send_wa_media({
 ## Pitfalls
 
 - Always use user agent `-A "Mozilla/5.0"` or PornPics may block
-- Always pick a random image (use `shuf -n 1`)
+- Extract ALL `cdni.pornpics.com` URLs (not just `href` links) — gives 20+ images per page
+- Always pick a random image with `shuf -n 1` — ensures variety
+- Always upgrade `/460/` to `/1280/` for high resolution
 - Verify the downloaded file is actually an image (`file /tmp/pinup-today.jpg`)
-- If no images found, try a different search query
+- The 10 queries rotate daily (day of year % 10) — one query per day of the cycle
 
 ## Verification
 
 - Confirm the image file exists and is > 10KB
 - Verify WhatsApp media send succeeds
 - Check that the message is delivered to the group
+- Verify 20+ URLs were extracted from the page (ensures variety)
