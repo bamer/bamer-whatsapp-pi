@@ -39,6 +39,7 @@ const mocks = vi.hoisted(() => {
         getOperatorJid: vi.fn().mockReturnValue(''),
         getSocket: vi.fn().mockReturnValue(null),
         getGroupSubject: vi.fn().mockReturnValue(undefined),
+        wasSentByExtension: vi.fn().mockReturnValue(false),
         getContactsService: vi.fn().mockReturnValue({ fetchContactsFromGroups: vi.fn(), reclassifyContacts: vi.fn() }),
         sendMediaMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'MEDIA1' }),
         addGroupParticipants: vi.fn().mockResolvedValue({ success: true }),

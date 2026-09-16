@@ -161,6 +161,9 @@ export class WhatsAppService {
     private groupSubjects: Map<string, string> = new Map();
     /** Outgoing message content store used by Baileys' getMessage callback (retry/resend). */
     private recentSentMessages: Map<string, unknown> = new Map();
+    // Message IDs sent by THIS extension (tools/cron) — used to skip the
+    // outgoing echo in the message handler so it never triggers a turn.
+    private extensionSentIds: Set<string> = new Set();
     /** Retry-counter cache for failed message decryption (Baileys CacheStore contract). */
     private msgRetryCounterCache: Map<string, unknown> = new Map();
     /** Placeholder-resend cache for undecryptable messages (Baileys CacheStore contract). */
@@ -488,6 +491,28 @@ export class WhatsAppService {
         if (this.recentSentMessages.size > 200) {
             const firstKey = this.recentSentMessages.keys().next().value;
             if (firstKey !== undefined) this.recentSentMessages.delete(firstKey);
+        }
+    }
+
+    /** True when this message was sent by this extension itself (echo skip). */
+    public wasSentByExtension(remoteJid: string | undefined, messageId: string | undefined): boolean {
+        if (!messageId) return false;
+        if (this.extensionSentIds.has(messageId)) return true;
+        return remoteJid !== undefined && this.extensionSentIds.has(`${remoteJid}|${messageId}`);
+    }
+
+    private rememberExtensionSent(remoteJid: string, messageId: string | undefined) {
+        if (!messageId) return;
+        this.extensionSentIds.add(messageId);
+        this.extensionSentIds.add(`${remoteJid}|${messageId}`);
+        // Bounded: echoes only arrive within seconds of the send.
+        if (this.extensionSentIds.size > 400) {
+            const it = this.extensionSentIds.values();
+            for (let i = 0; i < 200; i++) {
+                const v = it.next().value;
+                if (v === undefined) break;
+                this.extensionSentIds.delete(v);
+            }
         }
     }
 
@@ -924,7 +949,9 @@ export class WhatsAppService {
         fileLog(`[sendMessage] Result: success=${result.success}, error=${result.error}, attempts=${result.attempts}`);
         await this.sendPresence(recipientJid, 'paused');
 
-        if (!result.success) {
+        if (result.success) {
+            this.rememberExtensionSent(recipientJid, result.messageId);
+        } else {
             fileLog(t('service.whatsapp.failedSendMessage', { jid: recipientJid, error: result.error ?? t('message.sender.unknownError') }));
         }
 

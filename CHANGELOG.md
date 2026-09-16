@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.4] - 2026-09-14
+
+### Fixed
+- **No self-trigger on extension-sent messages**: messages sent by this extension (tools, cron) no longer trigger an assistant turn when the outgoing echo arrives. `sendMessage()` records the sent message IDs; the message handler skips the turn for those (echo stays display-only, for DMs and groups). Messages Ben writes from his phone to an allowed group still trigger a turn.
+- **Assistant label**: extension-sent echoes now read `Carl [assistant (extension)] sent to ...` instead of `Carl [you] sent to ...` — the assistant is not the operator.
+
 ## [1.12.3] - 2026-09-13
 
 ### Fixed

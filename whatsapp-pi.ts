@@ -472,6 +472,7 @@ export default function (pi: ExtensionAPI) {
 		 */
 		const describeSender = (): string => {
 			if (isFromMe) {
+				if (sentByExtension) return "assistant (extension)";
 				return describeSelfDevice(participantInfo.device, selfDevice);
 			}
 			const pn =
@@ -490,6 +491,9 @@ export default function (pi: ExtensionAPI) {
 		const groupLabel =
 			isGroup ? `${lookupGroupName(remoteJid ?? "")} (group)` : "";
 
+		// True when THIS extension sent the message (echo skip + [assistant] label).
+		const sentByExtension = whatsappService.wasSentByExtension(remoteJid, msg.key?.id);
+
 		const messageHeader =
 			isFromMe ?
 				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : `${lookupName(sender)} (DM)`}${mediaIndicator ? ` ${mediaIndicator}` : ""}:`
@@ -500,18 +504,18 @@ export default function (pi: ExtensionAPI) {
 
 		logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
 
-		// Outgoing echoes are shown in the chat for awareness. In 1:1 chats they
-		// must NOT trigger an assistant turn (Ben already handled the reply, and
-		// operator self-chat /compact and /abort still inject below). In groups
-		// the account is shared between Ben's devices and this extension, so a
-		// message Ben writes to an ALLOWED group is a legitimate assistant prompt.
+		// Outgoing echoes are shown in the chat for awareness. Messages sent by
+		// THIS extension (tools/cron) are display-only echoes: the assistant just
+		// produced them, re-running on its own output is useless — no turn for
+		// DMs or groups. Messages Ben writes from his phone to an ALLOWED group
+		// remain a legitimate assistant prompt (shared account).
 		if (isFromMe && !isOperator) {
 			pi.sendMessage({
 				customType: "whatsapp-echo",
 				content: `${messageHeader} ${text}`,
 				display: true,
 			});
-			if (!isGroup) {
+			if (!isGroup || sentByExtension) {
 				return;
 			}
 		}

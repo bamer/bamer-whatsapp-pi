@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => {
         getOperatorJid: vi.fn().mockReturnValue(''),
         getSocket: vi.fn().mockReturnValue(null),
         getGroupSubject: vi.fn().mockReturnValue(undefined),
+        wasSentByExtension: vi.fn().mockReturnValue(false),
         getContactsService: vi.fn().mockReturnValue({ getContact: vi.fn() }),
         sendMediaMessage: vi.fn(),
         addGroupParticipants: vi.fn(),
@@ -278,6 +279,28 @@ describe('whatsapp-pi — message callback & session events', () => {
             expect.stringContaining('que réponds-tu ?'),
             { deliverAs: 'followUp' }
         );
+    });
+
+    it('does not trigger a turn for messages sent by the extension itself', async () => {
+        mocks.whatsappService.wasSentByExtension.mockReturnValue(true);
+
+        await messageCallback!({
+            messages: [{
+                key: {
+                    remoteJid: '120363409409770410@g.us',
+                    participant: '33684136128:44@s.whatsapp.net',
+                    fromMe: true,
+                    id: 'M5'
+                },
+                message: { conversation: 'infos du jour' }
+            }]
+        });
+
+        // Echo shown with the assistant label...
+        const sent = lastEchoText();
+        expect(sent).toContain('[assistant (extension)] sent to');
+        // ...but NO user prompt: re-running on its own output is useless.
+        expect(pi.sendUserMessage).not.toHaveBeenCalled();
     });
 
     it('sends image messages with an image content block', async () => {
