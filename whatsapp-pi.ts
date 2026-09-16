@@ -152,6 +152,14 @@ export default function (pi: ExtensionAPI) {
 		return new Text(theme.fg("muted", text), 0, 0);
 	});
 
+	// Same muted rendering for appended echo entries (appendEntry path).
+	// Entries are TUI-only: displayed immediately, never trigger a turn,
+	// never enter LLM context (the assistant already knows what it sent).
+	pi.registerEntryRenderer("whatsapp-echo", (entry, _opts, theme) => {
+		const data = entry.data as { content?: string };
+		return new Text(theme.fg("muted", data?.content ?? ""), 0, 0);
+	});
+
 	const sessionManager = new SessionManager();
 	const whatsappService = new WhatsAppService(sessionManager);
 	const recentsService = new RecentsService(sessionManager);
@@ -510,11 +518,8 @@ export default function (pi: ExtensionAPI) {
 		// DMs or groups. Messages Ben writes from his phone to an ALLOWED group
 		// remain a legitimate assistant prompt (shared account).
 		if (isFromMe && !isOperator) {
-			pi.sendMessage({
-				customType: "whatsapp-echo",
-				content: `${messageHeader} ${text}`,
-				display: true,
-			}, { deliverAs: "nextTurn" });
+			// appendEntry: displayed in the TUI immediately, never triggers a turn.
+			pi.appendEntry("whatsapp-echo", { content: `${messageHeader} ${text}` });
 			if (!isGroup || sentByExtension) {
 				return;
 			}

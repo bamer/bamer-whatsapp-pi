@@ -111,7 +111,8 @@ const createMockPi = () => {
         exec: vi.fn().mockResolvedValue({ code: 0 }),
         sendUserMessage: vi.fn(),
         sendMessage: vi.fn(),
-        registerMessageRenderer: vi.fn()
+        registerMessageRenderer: vi.fn(),
+        registerEntryRenderer: vi.fn(),
     };
 };
 
@@ -175,8 +176,8 @@ describe('whatsapp-pi — message callback & session events', () => {
     };
 
     const lastEchoText = (): string => {
-        const calls = pi.sendMessage.mock.calls;
-        return calls[calls.length - 1][0].content;
+        const calls = pi.appendEntry.mock.calls;
+        return calls[calls.length - 1][1].content;
     };
 
     it('formats an incoming DM with the standard header', async () => {

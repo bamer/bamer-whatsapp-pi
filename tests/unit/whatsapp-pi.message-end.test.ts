@@ -119,6 +119,7 @@ interface MockPi {
     sendUserMessage: ReturnType<typeof vi.fn>;
     sendMessage: ReturnType<typeof vi.fn>;
     registerMessageRenderer: ReturnType<typeof vi.fn>;
+    registerEntryRenderer: ReturnType<typeof vi.fn>;
 }
 
 const createMockPi = (): MockPi => {
@@ -141,7 +142,8 @@ const createMockPi = (): MockPi => {
         exec: vi.fn().mockResolvedValue({ code: 0 }),
         sendUserMessage: vi.fn(),
         sendMessage: vi.fn(),
-        registerMessageRenderer: vi.fn()
+        registerMessageRenderer: vi.fn(),
+        registerEntryRenderer: vi.fn()
     };
 };
 
