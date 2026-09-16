@@ -1,6 +1,6 @@
 # Pin-up of the Day
 
-Get a daily pin-up/glamour photo from PornPics and send it via WhatsApp.
+Get a daily photo from PornPics  and send it via WhatsApp.
 
 ## When to Use
 

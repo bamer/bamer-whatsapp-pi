@@ -1061,7 +1061,11 @@ const messageOptions: any = { text };
         type: 'image' | 'video' | 'document',
         caption?: string
     ): Promise<MessageResult> {
-        return this.messageSender.sendMedia(recipientJid, mediaPath, type, caption);
+        const result = await this.messageSender.sendMedia(recipientJid, mediaPath, type, caption);
+        if (result.success) {
+            this.rememberExtensionSent(recipientJid, result.messageId);
+        }
+        return result;
     }
 
     /**
