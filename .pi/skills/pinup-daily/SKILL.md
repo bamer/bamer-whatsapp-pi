@@ -1,6 +1,6 @@
 # Pin-up of the Day
 
-Get a daily photo from PornPics  and send it via WhatsApp.
+Get a daily photo from PornPics with the current request without alterating the terms and send it via WhatsApp.
 
 ## When to Use
 
@@ -16,7 +16,7 @@ Get a daily photo from PornPics  and send it via WhatsApp.
 
 ```bash
 # 10 rotating queries (day of year % 10 selects one)
-QUERIES=("skinny+petite+asian" "skinny+teen" "anal+petite+asian" "petite+chinese+beauty" "asian+beauty" "petite+asian+double" "skinny+brunette+beauty" "petite+deep" "petite+asian+facial" "petite+asian+full")
+QUERIES=("skinny+petite+asian", "skinny+teen", "anal+petite+asian", "petite+chinese+beauty", "asian+beauty", "petite+asian+double", "skinny+brunette+beauty", "petite+deep", "petite+asian+facial", "petite+asian+full")
 QIDX=$(( $(date +%j) % 10 ))
 QUERY="${QUERIES[$QIDX]}"
 ```
@@ -73,6 +73,7 @@ send_wa_media({
 - Always upgrade `/460/` to `/1280/` for high resolution
 - Verify the downloaded file is actually an image (`file /tmp/pinup-today.jpg`)
 - The 10 queries rotate daily (day of year % 10) — one query per day of the cycle
+- PICK EXACTLY ONE TERM in the QUERIES array, you MUST not alter it.
 
 ## Verification
 

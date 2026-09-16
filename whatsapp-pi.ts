@@ -514,7 +514,7 @@ export default function (pi: ExtensionAPI) {
 				customType: "whatsapp-echo",
 				content: `${messageHeader} ${text}`,
 				display: true,
-			});
+			}, { deliverAs: "nextTurn" });
 			if (!isGroup || sentByExtension) {
 				return;
 			}
