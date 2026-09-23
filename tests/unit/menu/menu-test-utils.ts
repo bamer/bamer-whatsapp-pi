@@ -58,6 +58,7 @@ export function makeEnv(overrides: Record<string, any> = {}): MenuEnv {
 			getBrandVisibility: vi.fn().mockReturnValue(true),
 			setBrandVisibility: vi.fn().mockResolvedValue(undefined),
 			getAutoConnect: vi.fn().mockReturnValue(false),
+			getFooterMode: vi.fn().mockReturnValue("full"),
 			setAutoConnect: vi.fn().mockResolvedValue(undefined),
 			getAssistantName: vi.fn().mockReturnValue('Agent Pi'),
 			setAssistantName: vi.fn().mockResolvedValue(undefined),

@@ -179,6 +179,7 @@ describe('MenuHandler facade — domain dispatch', () => {
             getBrandVisibility: vi.fn().mockReturnValue(true),
             setBrandVisibility: vi.fn(),
             getAutoConnect: vi.fn().mockReturnValue(false),
+        getFooterMode: vi.fn().mockReturnValue("full"),
             setAutoConnect: vi.fn(),
             getAssistantName: vi.fn().mockReturnValue('Agent Pi'),
             setAssistantName: vi.fn(),

@@ -7,6 +7,7 @@ export async function manageSettings(ctx: ExtensionCommandContext, env: MenuEnv)
 	const { sessionManager, whatsappService } = env;
 	const brandVisibility = sessionManager.getBrandVisibility();
 	const autoConnect = sessionManager.getAutoConnect();
+	const footerMode = sessionManager.getFooterMode();
 	const assistantName = sessionManager.getAssistantName();
 	const agentSignature = sessionManager.getAgentSignature();
 	const logMaxSizeMB = sessionManager.getLogMaxSizeMB();
@@ -20,6 +21,10 @@ export async function manageSettings(ctx: ExtensionCommandContext, env: MenuEnv)
 		autoConnect ?
 			t("menu.settings.autoConnectYes")
 		:	t("menu.settings.autoConnectNo");
+	const footerModeLabel =
+		footerMode === "compact" ?
+			t("menu.settings.footerModeCompact")
+		:	t("menu.settings.footerModeFull");
 	const assistantNameLabel = `${t("menu.settings.assistantName")}: ${assistantName}`;
 	const agentSignatureLabel = `${t("menu.settings.agentSignature")}: ${agentSignature || '(none)'}`;
 	const logMaxSizeLabel = t("menu.settings.logMaxSize", { value: logMaxSizeMB });
@@ -28,6 +33,7 @@ export async function manageSettings(ctx: ExtensionCommandContext, env: MenuEnv)
 	const options = [
 		brandVisibilityLabel,
 		autoConnectLabel,
+		footerModeLabel,
 		assistantNameLabel,
 		agentSignatureLabel,
 		logMaxSizeLabel,
@@ -57,6 +63,17 @@ export async function manageSettings(ctx: ExtensionCommandContext, env: MenuEnv)
 		await sessionManager.setAutoConnect(newValue);
 		ctx.ui.notify(
 			t("menu.settings.autoConnectSet", { value: newValue ? "Yes" : "No" }),
+			"info",
+		);
+		await manageSettings(ctx, env);
+		return;
+	}
+
+	if (choice === footerModeLabel) {
+		const newValue = footerMode === "compact" ? "full" : "compact";
+		await sessionManager.setFooterMode(newValue);
+		ctx.ui.notify(
+			t("menu.settings.footerModeSet", { value: newValue }),
 			"info",
 		);
 		await manageSettings(ctx, env);

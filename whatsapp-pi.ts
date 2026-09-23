@@ -188,15 +188,57 @@ export default function (pi: ExtensionAPI) {
 		return `${status} to ${allowedChats} chat${allowedChats === 1 ? "" : "s"}`;
 	};
 
+	// Compact footer: 💬 WhatsApp logo + status icon (⚡ connected, 🔴 down, spinner connecting)
+	const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+	let spinnerInterval: ReturnType<typeof setInterval> | undefined;
+	let spinnerFrame = 0;
+
+	const stopSpinner = () => {
+		if (spinnerInterval) {
+			clearInterval(spinnerInterval);
+			spinnerInterval = undefined;
+		}
+	};
+
+	const isSpinnerStatus = (status: string) =>
+		status === t("service.whatsapp.connecting") ||
+		status === t("service.whatsapp.reconnecting") ||
+		status === t("service.whatsapp.typeToConnect") ||
+		status === "| WhatsApp: Auto-connecting...";
+
+	const applyFooterStatus = (ctx: ExtensionContext, status: string) => {
+		if (sessionManager.getFooterMode() === "compact") {
+			if (isSpinnerStatus(status)) {
+				if (!spinnerInterval) {
+					spinnerInterval = setInterval(() => {
+						spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
+						ctx.ui.setStatus(
+							"whatsapp",
+							`💬 ${SPINNER_FRAMES[spinnerFrame]}`,
+						);
+					}, 120);
+				}
+				ctx.ui.setStatus("whatsapp", `💬 ${SPINNER_FRAMES[spinnerFrame]}`);
+				return;
+			}
+			stopSpinner();
+			ctx.ui.setStatus(
+				"whatsapp",
+				status === t("service.whatsapp.connected") ? "💬 ⚡" : "💬 🔴",
+			);
+			return;
+		}
+		stopSpinner();
+		ctx.ui.setStatus("whatsapp", formatFooterStatus(status));
+	};
+
 	const refreshFooterStatus = () => {
 		if (!_ctx) return;
-		_ctx.ui.setStatus(
-			"whatsapp",
-			formatFooterStatus(
-				whatsappService.getStatus() === "connected" ?
-					t("service.whatsapp.connected")
-				:	t("service.whatsapp.disconnected"),
-			),
+		applyFooterStatus(
+			_ctx,
+			whatsappService.getStatus() === "connected" ?
+				t("service.whatsapp.connected")
+			:	t("service.whatsapp.disconnected"),
 		);
 	};
 
@@ -243,9 +285,9 @@ export default function (pi: ExtensionAPI) {
 				"[WhatsApp-Pi] Verbose mode enabled - Baileys trace logs will be shown",
 			);
 		}
-		ctx.ui.setStatus("whatsapp", "| WhatsApp: Disconnected");
+		applyFooterStatus(ctx, t("service.whatsapp.disconnected"));
 		whatsappService.setStatusCallback((status) => {
-			ctx.ui.setStatus("whatsapp", formatFooterStatus(status));
+			applyFooterStatus(ctx, status);
 		});
 
 		// Set up group binding if configured
@@ -326,7 +368,7 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		if (isWhatsappPiOn && registered && shouldStartPolling(ctx)) {
-			ctx.ui.setStatus("whatsapp", "| WhatsApp: Auto-connecting...");
+			applyFooterStatus(ctx, "| WhatsApp: Auto-connecting...");
 
 			// Retry logic (max 3 attempts, 3s delay)
 			let attempts = 0;
@@ -348,7 +390,7 @@ export default function (pi: ExtensionAPI) {
 							"WhatsApp: Auto-connect failed after multiple attempts.",
 							"error",
 						);
-						ctx.ui.setStatus("whatsapp", "|  WhatsApp: Connection Failed");
+							applyFooterStatus(ctx, "|  WhatsApp: Connection Failed");
 					}
 				}
 			};

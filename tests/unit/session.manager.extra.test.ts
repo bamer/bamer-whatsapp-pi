@@ -625,6 +625,7 @@ describe('SessionManager — extra coverage', () => {
             ['setOpenaiKey', 'sk-new', 'getOpenaiKey', 'sk-new'],
             ['setVisionModel', 'custom-model', 'getVisionModel', 'custom-model'],
             ['setOperatorJid', 'op@s.whatsapp.net', 'getOperatorJid', 'op@s.whatsapp.net'],
+            ['setFooterMode', 'compact', 'getFooterMode', 'compact'],
         ] as const)('%s persists the new value', async (setter, value, getter, expected) => {
             await (sm as any)[setter](value);
             expect((sm as any)[getter]()).toBe(expected);

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.5] - 2026-09-22
+
+### Added
+- **Compact footer mode**: new `footerMode` setting (Settings → Footer: Full/Compact). Compact mode shows `💬 ⚡` (connected), `💬 🔴` (disconnected) or `💬 ⠋` animated braille spinner (connecting/reconnecting) instead of the full text footer. Persisted in `config.json`.
+
 ## [1.12.4] - 2026-09-14
 
 ### Fixed

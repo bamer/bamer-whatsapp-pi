@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
         getAllowedGroups: vi.fn().mockReturnValue([]),
         getUpdateList: vi.fn().mockReturnValue([]),
         getAutoConnect: vi.fn().mockReturnValue(false),
+        getFooterMode: vi.fn().mockReturnValue("full"),
         isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
         setGroupJidForAuth: vi.fn(),
         getAssistantName: vi.fn().mockReturnValue('Carl')

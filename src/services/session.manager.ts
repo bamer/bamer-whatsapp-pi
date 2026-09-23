@@ -75,6 +75,16 @@ export class SessionManager {
     private agentSignature = 'π';
     private logMaxSizeMB = 5;
     private logRetentionDays = 7;
+    private footerMode: 'full' | 'compact' = 'full';
+
+    getFooterMode(): 'full' | 'compact' {
+        return this.footerMode;
+    }
+
+    async setFooterMode(mode: 'full' | 'compact'): Promise<void> {
+        this.footerMode = mode;
+        await this.saveConfig();
+    }
     private hasAuthState = false;
     private brandVisibility = true;
     private openaiKey: string = '';
@@ -152,6 +162,7 @@ export class SessionManager {
             this.agentSignature = config.agentSignature !== undefined ? config.agentSignature : 'π';
             this.logMaxSizeMB = config.logMaxSizeMB || 5;
             this.logRetentionDays = config.logRetentionDays || 7;
+            this.footerMode = config.footerMode === 'compact' ? 'compact' : 'full';
 
             if (recovered) {
                 await this.saveConfig();
@@ -245,7 +256,8 @@ export class SessionManager {
                 assistantName: this.assistantName,
                 agentSignature: this.agentSignature,
                 logMaxSizeMB: this.logMaxSizeMB,
-                logRetentionDays: this.logRetentionDays
+                logRetentionDays: this.logRetentionDays,
+                footerMode: this.footerMode
             };
             await mkdir(this.storagePaths.root, { recursive: true });
             const serialized = JSON.stringify(config, null, 2);
@@ -719,6 +731,7 @@ export class SessionManager {
     getBrandVisibility(): boolean {
         return this.brandVisibility;
     }
+
 
     async setBrandVisibility(value: boolean) {
         this.brandVisibility = value;
