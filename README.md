@@ -123,6 +123,24 @@ To test startup auto-connect locally after you have already paired WhatsApp:
 pi -e whatsapp-pi.ts --whatsapp-pi-online
 ```
 
+### Deploying / updating the extension
+
+Install and update through Pi so dependencies are installed automatically:
+
+```bash
+pi install git:github.com/bamer/bamer-whatsapp-pi   # first install
+pi update --extensions                              # later updates (reinstalls dependencies)
+```
+
+> **Warning:** never clone, copy, or `rsync` this repository into
+> `~/.pi/agent/extensions/whatsapp-pi`. That folder is the extension's **data directory**
+> (auth state, recents, config, logs), and Pi also auto-discovers any extension entry found
+> under `~/.pi/agent/extensions/`. If a `package.json` / `whatsapp-pi.ts` is placed there,
+> Pi loads it as a local extension — but Pi installs dependencies only for managed npm/git
+> packages, so the copy has no `node_modules` and startup fails with
+> `Cannot find module 'baileys'`. Using `rsync --delete` or `--delete-excluded` into that
+> folder also destroys the extension data (WhatsApp auth, recents, config).
+
 ## How It Works
 
 - Pi processes **incoming** messages only from allowed contacts or allowed groups.
@@ -209,4 +227,5 @@ npm test
 - `--whatsapp-group <jid>` binds Pi to one WhatsApp group.
 - Media handling is local: images for vision, audio via Whisper.cpp + ffmpeg, documents stored under `.pi-data/whatsapp/documents/`.
 - Recents/history live in `~/.pi/agent/extensions/whatsapp-pi/recents/recents.json`.
+- The `~/.pi/agent/extensions/whatsapp-pi/` folder is **data only** (`auth/`, `recents/`, `config.json`, `contacts.json`, `whatsapp-medias/`, logs). Never place extension sources (`package.json`, `whatsapp-pi.ts`, `src/`) in it — see [Deploying / updating the extension](#deploying--updating-the-extension).
 - Session state, allow lists, and startup reconnects are persisted locally.
