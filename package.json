@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-pi",
-  "version": "1.12.5",
+  "version": "1.12.6",
   "type": "module",
   "description": "WhatsApp integration extension for Pi",
   "main": "whatsapp-pi.ts",
@@ -33,13 +33,15 @@
     "prepare": "pnpm install"
   },
   "dependencies": {
-    "@earendil-works/pi-tui": "^0.84.2",
     "@llamaindex/liteparse": "^2.13.1",
-    "@sinclair/typebox": "^0.34.52",
     "baileys": "^7.0.0-rc14",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
     "whisper-cpp-node": "^0.2.12"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-tui": "*",
+    "@sinclair/typebox": "*"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.84.2",

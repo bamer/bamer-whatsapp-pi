@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.6] - 2026-09-23
+
+### Fixed
+- **Extension loader warning**: moved `@earendil-works/pi-tui` and `@sinclair/typebox` from `dependencies` to `peerDependencies` ("*" range), as required for host-provided extension packages. Removes the "must be declared in peerDependencies" warning on every load and avoids duplicate runtime modules.
+
 ## [1.12.5] - 2026-09-22
 
 ### Added
