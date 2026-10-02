@@ -3,6 +3,7 @@ import type {
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
+import { readFileSync } from "fs";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { initI18n, t } from "./src/i18n.js";
@@ -368,7 +369,21 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		if (isWhatsappPiOn && registered && shouldStartPolling(ctx)) {
-			applyFooterStatus(ctx, "| WhatsApp: Auto-connecting...");
+			// Instance lock: skip auto-connect if another live pi instance holds the WhatsApp connection.
+			let lockHeld = false;
+			try {
+				const lock = JSON.parse(readFileSync(sessionManager.getConnectionLockPath(), "utf8")) as { pid?: number };
+				if (lock.pid && lock.pid !== process.pid && process.kill(lock.pid, 0)) {
+					lockHeld = true;
+				}
+			} catch {
+				// No lock or stale (dead PID) → not held.
+			}
+			if (lockHeld) {
+				logger.log("[WhatsApp-Pi] Connection held by another pi instance — skipping auto-connect");
+				applyFooterStatus(ctx, "| WhatsApp: held by another instance");
+			} else {
+				applyFooterStatus(ctx, "| WhatsApp: Auto-connecting...");
 
 			// Retry logic (max 3 attempts, 3s delay)
 			let attempts = 0;
@@ -396,6 +411,7 @@ export default function (pi: ExtensionAPI) {
 			};
 
 			await tryConnect();
+		}
 		} else if (isWhatsappPiOn) {
 			ctx.ui.notify(
 				"WhatsApp: Auto-connect requested, but no saved WhatsApp credentials were found. Use Connect WhatsApp once to scan the QR code.",

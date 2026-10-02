@@ -728,6 +728,10 @@ export class SessionManager {
         await this.saveConfig();
     }
 
+    getConnectionLockPath(): string {
+        return join(this.storagePaths.root, 'connection.lock');
+    }
+
     getBrandVisibility(): boolean {
         return this.brandVisibility;
     }

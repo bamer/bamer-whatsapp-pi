@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.7] - 2026-10-02
+
+### Added
+- **Instance connection lock**: a new pi session no longer steals the WhatsApp connection from a running instance. On connect, the extension writes `connection.lock` (PID) in its storage root; on startup, auto-connect is skipped if another live pi instance holds the lock (stale locks with dead PIDs are ignored). Lock is released on graceful stop. Fixes the recurring "connection moves to the new session and never comes back" issue when opening small-task pi sessions.
+
 ## [1.12.6] - 2026-09-23
 
 ### Fixed

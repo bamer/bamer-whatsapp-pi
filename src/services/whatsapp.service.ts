@@ -4,7 +4,7 @@ import {
     makeCacheableSignalKeyStore,
     makeWASocket
 } from 'baileys';
-import { appendFileSync } from 'fs';
+import { appendFileSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import P from 'pino';
 import { t } from '../i18n.js';
 import { IncomingMessage, MessageResult, SessionStatus } from '../models/whatsapp.types.js';
@@ -643,6 +643,24 @@ export class WhatsAppService {
         this.qrWasShown = true;
     }
 
+    private writeConnectionLock() {
+        try {
+            writeFileSync(createStoragePaths().root + '/connection.lock', JSON.stringify({ pid: process.pid, ts: Date.now() }));
+        } catch {
+            // Lock write is best-effort.
+        }
+    }
+
+    removeConnectionLockIfOurs() {
+        try {
+            const lockPath = createStoragePaths().root + '/connection.lock';
+            const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { pid?: number };
+            if (lock.pid === process.pid) unlinkSync(lockPath);
+        } catch {
+            // No lock or unreadable — nothing to remove.
+        }
+    }
+
     private async handleConnectionOpen() {
         if (this.verboseMode) {
             fileLog(t('service.whatsapp.connectionOpened'));
@@ -654,6 +672,7 @@ export class WhatsAppService {
         await this.saveCreds?.();
         await this.sessionManager.markAuthStateAvailable();
         await this.sessionManager.setStatus('connected');
+        this.writeConnectionLock();
         this.onStatusUpdate?.(t('service.whatsapp.connected'));
 
         // Sync real group names (subjects) right after connecting so display
@@ -1037,6 +1056,7 @@ const messageOptions: any = { text };
     }
 
     async stop() {
+        this.removeConnectionLockIfOurs();
         this.intentionalStop = true;
         try {
             await this.saveCreds?.();
