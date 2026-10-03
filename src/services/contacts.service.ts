@@ -10,7 +10,18 @@ export interface SyncedContact {
 	notify?: string;
 	status?: string;
 	imgUrl?: string | null;
-	source?: 'addressbook' | 'group';
+	source?: 'addressbook' | 'group' | 'other';
+}
+
+/**
+ * Classify a JID: only real phone-number users (@s.whatsapp.net) count as
+ * personal (addressbook) contacts. Newsletters/channels (@newsletter), LID
+ * contacts (@lid, Baileys v7 internal addressing) and broadcast lists are
+ * tagged 'other' so they never appear in the personal contact list.
+ */
+function classifyJidSource(jid: string): 'addressbook' | 'other' {
+	if (jid.endsWith('@s.whatsapp.net')) return 'addressbook';
+	return 'other';
 }
 
 export class ContactsService {
@@ -36,7 +47,9 @@ export class ContactsService {
 				if (!c?.id) continue;
 				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
 				const hasName = !!(c.name || c.notify);
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: hasName ? 'addressbook' : (existing?.source || 'addressbook') });
+				const jidSource = classifyJidSource(c.id);
+				const source = jidSource === 'other' ? (existing?.source || 'other') : (hasName ? 'addressbook' : (existing?.source || 'addressbook'));
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source });
 			}
 			fileLog(`[Contacts] upsert: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -48,7 +61,7 @@ export class ContactsService {
 			for (const c of contacts) {
 				if (!c?.id) continue;
 				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: 'addressbook' });
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: classifyJidSource(c.id) === 'other' ? (existing?.source || 'other') : 'addressbook' });
 			}
 			fileLog(`[Contacts] messaging-history.set: ${contacts.length} personal contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -59,7 +72,9 @@ export class ContactsService {
 				if (!c?.id) continue;
 				const existing = this.contacts.get(c.id) as SyncedContact | undefined;
 				const hasName = !!(c.name || c.notify);
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source: hasName ? 'addressbook' : (existing?.source || 'addressbook') });
+				const jidSource = classifyJidSource(c.id);
+				const source = jidSource === 'other' ? (existing?.source || 'other') : (hasName ? 'addressbook' : (existing?.source || 'addressbook'));
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source });
 			}
 			fileLog(`[Contacts] update: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -72,7 +87,17 @@ export class ContactsService {
 			const data = await readFile(this.contactsPath, 'utf-8');
 			const parsed = JSON.parse(data) as Record<string, SyncedContact>;
 			this.contacts = new Map(Object.entries(parsed));
-			fileLog(`[Contacts] loaded ${this.contacts.size} contacts from disk`);
+			// One-time cleanup: demote non-personal JIDs (newsletters, LIDs, broadcasts)
+			// that were previously mis-tagged as 'addressbook'.
+			let demoted = 0;
+			for (const [id, c] of this.contacts) {
+				if (c.source === 'addressbook' && classifyJidSource(id) === 'other') {
+					this.contacts.set(id, { ...c, source: 'other' });
+					demoted++;
+				}
+			}
+			if (demoted > 0) this.scheduleSave();
+			fileLog(`[Contacts] loaded ${this.contacts.size} contacts from disk (demoted ${demoted} non-personal)`);
 		} catch {
 			fileLog('[Contacts] no contacts file yet — starting fresh');
 		}
@@ -98,12 +123,12 @@ export class ContactsService {
 	}
 
 	/** Get contacts filtered by source, sorted by name. */
-	getContactsBySource(source: 'addressbook' | 'group'): SyncedContact[] {
+	getContactsBySource(source: 'addressbook' | 'group' | 'other'): SyncedContact[] {
 		return this.getAllContacts().filter((c) => c.source === source);
 	}
 
 	/** Get count by source. */
-	getCountBySource(source: 'addressbook' | 'group'): number {
+	getCountBySource(source: 'addressbook' | 'group' | 'other'): number {
 		let count = 0;
 		for (const c of this.contacts.values()) {
 			if (c.source === source) count++;
@@ -115,7 +140,7 @@ export class ContactsService {
 	reclassifyContacts(): { upgraded: number; total: number } {
 		let upgraded = 0;
 		for (const [id, c] of this.contacts) {
-			if ((c.name || c.notify) && c.source !== 'addressbook') {
+			if ((c.name || c.notify) && c.source !== 'addressbook' && classifyJidSource(id) === 'addressbook') {
 				this.contacts.set(id, { ...c, source: 'addressbook' });
 				upgraded++;
 			}

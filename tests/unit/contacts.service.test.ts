@@ -130,15 +130,33 @@ describe('ContactsService', () => {
             expect(service.getCount()).toBe(1);
         });
 
-        it('contacts.update upgrades source when name appears', async () => {
+        it('contacts.update upgrades source when name appears (phone JIDs only)', async () => {
             const socket = makeSocket();
             service.attach(socket as any);
 
-            await socket.handlers.get('contacts.upsert')!([{ id: 'x@lid' }]);
-            await socket.handlers.get('contacts.update')!([{ id: 'x@lid', notify: 'Xavier' }]);
+            await socket.handlers.get('contacts.upsert')!([{ id: 'x@s.whatsapp.net' }]);
+            await socket.handlers.get('contacts.update')!([{ id: 'x@s.whatsapp.net', notify: 'Xavier' }]);
 
-            expect(service.getContact('x@lid')?.notify).toBe('Xavier');
-            expect(service.getContact('x@lid')?.source).toBe('addressbook');
+            expect(service.getContact('x@s.whatsapp.net')?.notify).toBe('Xavier');
+            expect(service.getContact('x@s.whatsapp.net')?.source).toBe('addressbook');
+        });
+
+        it('LID and newsletter contacts are never marked personal', async () => {
+            const socket = makeSocket();
+            service.attach(socket as any);
+
+            await socket.handlers.get('contacts.upsert')!([
+                { id: 'x@lid', notify: 'Xavier' },
+                { id: 'n@newsletter', name: 'Some Channel' },
+            ]);
+            await socket.handlers.get('contacts.update')!([{ id: 'x@lid', name: 'Xavier LID' }]);
+            await socket.handlers.get('messaging-history.set')!({
+                contacts: [{ id: 'n@newsletter' }, { id: 'p@s.whatsapp.net' }]
+            });
+
+            expect(service.getContact('x@lid')?.source).toBe('other');
+            expect(service.getContact('n@newsletter')?.source).toBe('other');
+            expect(service.getContact('p@s.whatsapp.net')?.source).toBe('addressbook');
         });
     });
 
@@ -178,11 +196,11 @@ describe('ContactsService', () => {
     });
 
     describe('reclassifyContacts', () => {
-        it('upgrades named group contacts to addressbook and reports counts', async () => {
+        it('upgrades named phone contacts to addressbook, never LIDs, and reports counts', async () => {
             // Seed stale state from disk: named contact still tagged as 'group'.
             f.readFile.mockResolvedValue(JSON.stringify({
                 'p1@lid': { id: 'p1@lid', source: 'group' },
-                'p2@lid': { id: 'p2@lid', name: 'P Two', source: 'group' },
+                'p2@s.whatsapp.net': { id: 'p2@s.whatsapp.net', name: 'P Two', source: 'group' },
                 'p3@lid': { id: 'p3@lid', notify: 'P Three', source: 'addressbook' }
             }));
             await service.load();
@@ -190,10 +208,10 @@ describe('ContactsService', () => {
             const result = service.reclassifyContacts();
 
             expect(result).toEqual({ upgraded: 1, total: 3 });
-            expect(service.getContact('p2@lid')?.source).toBe('addressbook');
+            expect(service.getContact('p2@s.whatsapp.net')?.source).toBe('addressbook');
             expect(service.getContact('p1@lid')?.source).toBe('group');
-            // Already addressbook: not double-counted.
-            expect(service.getContact('p3@lid')?.source).toBe('addressbook');
+            // LID contacts are never personal: load() demotes mis-tagged ones to 'other'.
+            expect(service.getContact('p3@lid')?.source).toBe('other');
         });
     });
 

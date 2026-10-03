@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.8] - 2026-10-02
+
+### Fixed
+- **Personal contact list pollution**: contacts are now classified by JID type. Only real phone-number users (`@s.whatsapp.net`) can be personal (`addressbook`) contacts. WhatsApp channels/newsletters (`@newsletter`), LID contacts (`@lid`, Baileys v7 internal addressing) and broadcast lists are tagged `other` and never appear in the personal contact list. On load, previously mis-tagged non-personal JIDs are automatically demoted. The "Re-classify contacts" action also no longer upgrades LID contacts to personal.
+
 ## [1.12.7] - 2026-10-02
 
 ### Added
