@@ -33,9 +33,9 @@
     "prepare": "pnpm install"
   },
   "dependencies": {
-    "@llamaindex/liteparse": "^2.13.1",
+    "@llamaindex/liteparse": "^2.15.1",
     "baileys": "^7.0.0-rc14",
-    "pino": "^10.3.1",
+    "pino": "^10.4.0",
     "qrcode-terminal": "^0.12.0",
     "whisper-cpp-node": "^0.2.12"
   },
@@ -44,18 +44,18 @@
     "@sinclair/typebox": "*"
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.84.2",
+    "@earendil-works/pi-coding-agent": ">=1.0.1",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.4",
     "@types/qrcode-terminal": "^0.12.2",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
-    "@vitest/coverage-v8": "^4.1.11",
-    "eslint": "^10.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.0",
+    "@typescript-eslint/parser": "^8.71.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.12.0",
     "ts-node": "^10.9.2",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   },
   "pi": {
     "extensions": [
