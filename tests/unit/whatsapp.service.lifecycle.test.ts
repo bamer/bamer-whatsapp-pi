@@ -432,9 +432,9 @@ describe('WhatsAppService — socket lifecycle', () => {
 
         const mediaSpy = vi.spyOn((service as any).messageSender, 'sendMedia')
             .mockResolvedValue({ success: true, messageId: 'MEDIA-X', attempts: 1 });
-        const addSpy = vi.spyOn((service as any).messageSender, 'addGroupParticipants')
+        const _addSpy = vi.spyOn((service as any).messageSender, 'addGroupParticipants')
             .mockResolvedValue({ success: true });
-        const removeSpy = vi.spyOn((service as any).messageSender, 'removeGroupParticipants')
+        const _removeSpy = vi.spyOn((service as any).messageSender, 'removeGroupParticipants')
             .mockResolvedValue({ success: true });
 
         await expect(service.sendMediaMessage('+111', '/tmp/p.jpg', 'image', 'cap')).resolves.toEqual({
@@ -676,7 +676,7 @@ describe('WhatsAppService — edge branches', () => {
 
     it('handles non-object and Error-instance disconnect errors', async () => {
         vi.useFakeTimers();
-        const { service, sessionManager } = await boot();
+        const { service } = await boot();
         const socket = baileysMocks.sockets[0];
 
         // undefined lastDisconnect -> statusCode undefined -> treated as retryable.

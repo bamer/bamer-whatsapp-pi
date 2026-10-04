@@ -158,7 +158,7 @@ export class ContactsService {
 		const groupCount = Object.keys(groups).length;
 		let newCount = 0;
 
-		for (const [jid, meta] of Object.entries(groups)) {
+		for (const [, meta] of Object.entries(groups)) {
 			for (const p of meta.participants) {
 				if (!p?.id) continue;
 				const existing = this.contacts.get(p.id);

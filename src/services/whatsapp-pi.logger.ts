@@ -18,7 +18,7 @@ export class WhatsAppPiLogger {
     ) {
         const { logDir } = createStoragePaths();
         this.logDir = logDir;
-        try { mkdirSync(logDir, { recursive: true }); } catch {}
+        try { mkdirSync(logDir, { recursive: true }); } catch { /* ignore mkdir errors */ }
         this.cleanOldLogs();
         this.currentLogFile = this.getCurrentLogFile();
         this.currentSize = this.getFileSize(this.currentLogFile);
@@ -46,7 +46,7 @@ export class WhatsAppPiLogger {
     }
 
     private newLogFile(): string {
-        const timestamp = new Date().toISOString().replace(/[:\.]/g, '-');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         return join(this.logDir, `whatsapp-pi-${timestamp}.log`);
     }
 
@@ -74,12 +74,12 @@ export class WhatsAppPiLogger {
                 if (age > maxAge) {
                     unlinkSync(file);
                 }
-            } catch {}
+            } catch { /* ignore unlink errors */ }
         }
         // Also enforce max file count
         const files = this.getLogFiles();
         while (files.length > 10) {
-            try { unlinkSync(files.shift()!); } catch {}
+            try { unlinkSync(files.shift()!); } catch { /* ignore unlink errors */ }
         }
     }
 

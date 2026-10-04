@@ -5,7 +5,6 @@ import { makeCtx, makeEnv } from './menu-test-utils.ts';
 
 const BACK = () => t('menu.root.back');
 const FILTER_PERSONAL = (n: number) => t('menu.contacts.filterPersonal', { count: n });
-const FILTER_GROUP = (n: number) => t('menu.contacts.filterGroup', { count: n });
 const FILTER_ALL = (n: number) => t('menu.contacts.filterAll', { count: n });
 
 describe('contacts.menu', () => {

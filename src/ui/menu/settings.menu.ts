@@ -1,6 +1,5 @@
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { t } from "../../i18n.js";
-import { fileLog } from "../../services/storage-path.js";
 import type { MenuEnv } from "./menu-context.js";
 
 export async function manageSettings(ctx: ExtensionCommandContext, env: MenuEnv) {

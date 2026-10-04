@@ -94,7 +94,6 @@ describe('groups.menu', () => {
 		const historySpy = vi.fn().mockResolvedValue(undefined);
 		// Spy on the shared history entry point via the recents module.
 		const recentsModule = await import('../../../src/ui/menu/recents.menu.ts');
-		const orig = recentsModule.showConversationHistoryForContact;
 		const moduleMock = vi.spyOn(recentsModule, 'showConversationHistoryForContact')
 			.mockImplementation(historySpy as any);
 

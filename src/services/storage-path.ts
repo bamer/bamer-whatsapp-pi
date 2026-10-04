@@ -82,7 +82,7 @@ export function fileLog(message: string) {
         }
         const timestamp = new Date().toISOString();
         appendFileSync(_logPath, `[${timestamp}] ${message}\n`);
-    } catch {}
+    } catch { /* ignore log write errors */ }
 }
 
 export async function migrateLegacyStorage(paths: Pick<StoragePaths, 'root' | 'legacyRoot'>): Promise<boolean> {

@@ -469,7 +469,7 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		const { text, imageBuffer, imageMimeType, savedMediaPath } =
+		const { text, imageBuffer, imageMimeType, savedMediaPath: _savedMediaPath } =
 			await incomingMediaService.process(resolved, pushName);
 
 		// Media indicator for outgoing messages

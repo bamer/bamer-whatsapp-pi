@@ -989,8 +989,6 @@ export class WhatsAppService {
             };
         }
 
-        const isGroup = SessionManager.isGroupJid(normalizedJid);
-
 const messageOptions: any = { text };
 
         try {

@@ -46,7 +46,7 @@ export class AudioService {
       }
 
       // CAPTURER LA SORTIE DU SCRIPT (stdout)
-      const { stdout, stderr } = await execAsync(command);
+      const { stdout } = await execAsync(command);
       
       // Si le script a retourné un texte via stdout, l'utiliser
       const text = stdout ? stdout.trim() : '';

@@ -86,9 +86,7 @@ export function makeEnv(overrides: Record<string, any> = {}): MenuEnv {
 			setAllowedContactAlias: vi.fn().mockResolvedValue(undefined),
 			removeAllowedContactAlias: vi.fn().mockResolvedValue(undefined),
 			setContactSendNumber: vi.fn().mockResolvedValue(undefined),
-			removeContactSendNumber: vi.fn().mockResolvedValue(undefined),
-			getAgentSignature: vi.fn().mockReturnValue('π'),
-			getAssistantName: vi.fn().mockReturnValue('Agent Pi')
+			removeContactSendNumber: vi.fn().mockResolvedValue(undefined)
 		},
 		recentsService: {
 			getRecentConversations: vi.fn().mockResolvedValue([]),

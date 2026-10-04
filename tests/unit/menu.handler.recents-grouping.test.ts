@@ -45,7 +45,7 @@ function makeConversation(overrides: Partial<RecentConversationSummary>): Recent
 }
 
 describe('MenuHandler — recents grouping helpers', () => {
-    let handler: MenuHandler;
+    let _handler: MenuHandler;
     const mockWhatsAppService = {} as any;
     const mockSessionManager = {
         isConversationAllowed: vi.fn().mockReturnValue(false),
@@ -66,7 +66,7 @@ describe('MenuHandler — recents grouping helpers', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        handler = new MenuHandler(mockWhatsAppService, mockSessionManager, mockRecentsService);
+        _handler = new MenuHandler(mockWhatsAppService, mockSessionManager, mockRecentsService);
     });
 
     const groupFn = (convs: RecentConversationSummary[]) =>

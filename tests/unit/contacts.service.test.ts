@@ -18,7 +18,7 @@ vi.mock('../../src/services/storage-path.ts', () => ({
     fileLog: f.fileLog
 }));
 
-import { ContactsService, type SyncedContact } from '../../src/services/contacts.service.ts';
+import { ContactsService } from '../../src/services/contacts.service.ts';
 
 const CONTACTS_PATH = '/fake/root/contacts.json';
 
@@ -34,8 +34,6 @@ const makeSocket = () => {
         profilePictureUrl: vi.fn().mockResolvedValue('https://example.com/pic.jpg')
     };
 };
-
-const flushSave = () => new Promise((resolve) => setTimeout(resolve, 2100));
 
 describe('ContactsService', () => {
     let service: ContactsService;
