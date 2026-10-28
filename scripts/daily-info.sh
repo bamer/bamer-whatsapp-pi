@@ -19,7 +19,7 @@ print(f"Wind: {cc.get('windspeedKmph', 'N/A')} km/h ({cc.get('winddir16Point', '
 PY
 )
 
-# ---- saying of the day (proverbes anglais + trad FR, scripts/sayings.json, 229 entrees) ----
+# ---- saying of the day (proverbes anglais + trad FR, scripts/sayings.json, 566 entrees) ----
 SAYINGS_FILE="$(dirname "$0")/sayings.json"
 SAYING=$(python3 - "$SAYINGS_FILE" <<'PY'
 import datetime, json, sys
