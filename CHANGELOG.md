@@ -5,6 +5,7 @@
 ### Fixed
 - **Infinite `prepare` recursion on install/update**: the `prepare` script ran `pnpm install`, and `pnpm install` itself runs `prepare` — an infinite loop that ate RAM/CPU during `pi update` and failed with `ERR_PNPM_EXECUTOR_LIFECYCLE_SCRIPT_FAILED` after ~7 min. The script now runs `pnpm install --ignore-scripts` (no recursion).
 - **pnpm 12 build-script approval**: pnpm 12 no longer reads `pnpm.onlyBuiltDependencies` from package.json; build scripts of `esbuild`, `protobufjs`, `baileys` and `@google/genai` are now approved via `allowBuilds` in `pnpm-workspace.yaml` (fixes `ERR_PNPM_IGNORED_BUILDS`).
+- **Daily info script**: pin-up query now rotates by day-of-year (`queries[doy % 10]`), extraction covers ALL `cdni.pornpics.com` image URLs (not just `href`), `/460/` upgraded to `/1280/`, JPEG verified via `file`, anti-reuse journal (`~/emu-work/pinup-sent.log`), search page re-fetched when older than 6 h, `curl -L` (some queries answer with a 301 redirect) and fallback to the next queries when one returns nothing.
 
 ## [1.12.8] - 2026-10-02
 
