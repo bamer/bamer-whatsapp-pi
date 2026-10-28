@@ -30,7 +30,7 @@
     "lint": "eslint whatsapp-pi.ts \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepare": "pnpm install"
+    "prepare": "pnpm install --ignore-scripts"
   },
   "dependencies": {
     "@llamaindex/liteparse": "^2.15.1",
