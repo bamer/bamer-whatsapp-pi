@@ -19,28 +19,15 @@ print(f"Wind: {cc.get('windspeedKmph', 'N/A')} km/h ({cc.get('winddir16Point', '
 PY
 )
 
-# ---- saying of the day (rotation sur le jour de l'annee) ----
-SAYING=$(python3 - <<'PY'
-import datetime
-sayings = [
-    'La vie est belle, mais pas gratuite. 🌸',
-    "Celui qui n'a rien à donner a tout à gagner. 🤝",
-    'Le silence est parfois la meilleure réponse. 🤫',
-    'Chaque jour est une nouvelle chance de changer sa vie. 🌅',
-    'La patience est amère, mais son fruit est doux. 🍯',
-    'Rien ne sert de courir, il faut partir à point. 🐌',
-    "Petit à petit, l'oiseau fait son nid. 🐦",
-    "C'est en forgeant qu'on devient forgeron. 🔨",
-    'Les petites pensées parlent beaucoup, les grandes peu. 💭',
-    "La vie est un mystère qu'il faut vivre, et non un problème à résoudre. ✨",
-    "Le bonheur n'est pas quelque chose de prêt à l'emploi. Il vient de vos propres actions. 😊",
-    "Ce que tu es crie si fort que je n'entends pas ce que tu dis. 🗣️",
-    "L'expérience est un nom que l'on donne à ses erreurs. 📚",
-    "La seule limite à notre réalisation d'aujourd'hui sera nos doutes d'aujourd'hui. 🌟",
-    "Il n'y a qu'une richesse, c'est les hommes. 💎",
-]
-day_of_year = datetime.date.today().timetuple().tm_yday
-print(sayings[day_of_year % len(sayings)])
+# ---- saying of the day (proverbes anglais + trad FR, scripts/sayings.json, 229 entrees) ----
+SAYINGS_FILE="$(dirname "$0")/sayings.json"
+SAYING=$(python3 - "$SAYINGS_FILE" <<'PY'
+import datetime, json, sys
+try:
+    sayings = json.load(open(sys.argv[1]))
+except Exception:
+    sayings = ['La vie est belle, mais pas gratuite. 🌸']
+print(sayings[datetime.date.today().timetuple().tm_yday % len(sayings)])
 PY
 )
 
