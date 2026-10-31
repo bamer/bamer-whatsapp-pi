@@ -136,7 +136,8 @@ describe('WhatsAppService — incoming message flows', () => {
             remoteJid: '+33123456789@s.whatsapp.net',
             pushName: undefined,
             text: 'hello',
-            timestamp: 1_800_000_000
+            timestamp: 1_800_000_000,
+            fromMe: false
         });
 
         await service.stop();
@@ -194,6 +195,34 @@ describe('WhatsAppService — incoming message flows', () => {
         const { service, socket } = await boot();
 
         await socket.handlers.get('messages.upsert')!(msg('+111@s.whatsapp.net', 'my own echo π'));
+
+        expect(recordedIncoming).toHaveLength(0);
+        expect(service.getLastRemoteJid()).toBeNull();
+
+        await service.stop();
+    });
+
+    it('flags own-phone messages (fromMe) so the caller can attribute them as outgoing', async () => {
+        const { service, socket } = await boot();
+
+        await socket.handlers.get('messages.upsert')!(
+            msg('+33123456789@s.whatsapp.net', 'typed from phone', { key: { fromMe: true } })
+        );
+
+        expect(recordedIncoming[0].fromMe).toBe(true);
+
+        await service.stop();
+    });
+
+    it('never re-ingests the echo of a message sent by this extension', async () => {
+        const { service, socket } = await boot();
+
+        const result = await service.sendMessage('+33123456789@s.whatsapp.net', 'sent by Carl');
+        expect(result.success).toBe(true);
+
+        await socket.handlers.get('messages.upsert')!(
+            msg('+33123456789@s.whatsapp.net', 'sent by Carl', { key: { fromMe: true, id: 'SENT' } })
+        );
 
         expect(recordedIncoming).toHaveLength(0);
         expect(service.getLastRemoteJid()).toBeNull();

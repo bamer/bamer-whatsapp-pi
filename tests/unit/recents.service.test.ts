@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { join } from 'node:path';
-import { RecentsService } from '../../src/services/recents.service.ts';
+import {
+    attributeIncomingMessage,
+    RecentsService
+} from '../../src/services/recents.service.ts';
 
 // Mirrors createStoragePaths() from storage-path.ts with the mocked homedir.
 const STORAGE_ROOT = join('C:\\Users\\test', '.pi', 'agent', 'extensions', 'whatsapp-pi');
@@ -281,5 +284,28 @@ describe('RecentsService — edge branches', () => {
             messageId: 'X', senderNumber: '+33684136128', text: 'hello', timestamp: 1_700_000_000_000
         });
         expect(await service.hasRecentConversations()).toBe(true);
+    });
+
+    describe('attributeIncomingMessage', () => {
+        it('marks own-account messages (phone or extension) as outgoing', () => {
+            expect(attributeIncomingMessage({ fromMe: true, isGroup: false, pushName: 'Ben' })).toEqual({
+                direction: 'outgoing',
+                senderName: undefined
+            });
+        });
+
+        it('keeps incoming messages attributed to their sender', () => {
+            expect(attributeIncomingMessage({ isGroup: false, pushName: 'Christophe' })).toEqual({
+                direction: 'incoming',
+                senderName: 'Christophe'
+            });
+        });
+
+        it('names groups after their subject, never after the participant', () => {
+            expect(attributeIncomingMessage({ isGroup: true, pushName: 'Ben', groupSubject: 'My Py group' })).toEqual({
+                direction: 'incoming',
+                senderName: 'My Py group'
+            });
+        });
     });
 });

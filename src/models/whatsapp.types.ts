@@ -16,6 +16,8 @@ export interface IncomingMessage {
     pushName?: string;
     text?: string;
     timestamp: number;
+    /** True when the message was sent by our own account (phone or extension). */
+    fromMe?: boolean;
 }
 
 export interface MessageRequest {

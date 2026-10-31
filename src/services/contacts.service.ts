@@ -24,10 +24,24 @@ function classifyJidSource(jid: string): 'addressbook' | 'other' {
 	return 'other';
 }
 
+export interface ProfilePicture {
+	/** Public CDN URL of the picture. */
+	url: string;
+	/** Base64-encoded image bytes. */
+	base64: string;
+	mimeType: string;
+}
+
+/** WhatsApp sometimes stores 'changed'/'removed' in imgUrl — keep real URLs only. */
+function sanitizeImgUrl(value: unknown): string | undefined {
+	return typeof value === 'string' && /^https?:\/\//i.test(value) ? value : undefined;
+}
+
 export class ContactsService {
 	private contacts = new Map<string, SyncedContact>();
 	private dirty = false;
 	private saveTimer: ReturnType<typeof setTimeout> | null = null;
+	private socket?: { profilePictureUrl?(jid: string, type?: 'preview' | 'image'): Promise<string | undefined> };
 
 	constructor(private readonly contactsPath: string) {}
 
@@ -42,6 +56,7 @@ export class ContactsService {
 			profilePictureUrl?(jid: string, type?: 'preview' | 'image'): Promise<string | undefined>;
 		},
 	) {
+		this.socket = socket;
 		socket.ev.on('contacts.upsert', (contacts) => {
 			for (const c of contacts) {
 				if (!c?.id) continue;
@@ -49,7 +64,7 @@ export class ContactsService {
 				const hasName = !!(c.name || c.notify);
 				const jidSource = classifyJidSource(c.id);
 				const source = jidSource === 'other' ? (existing?.source || 'other') : (hasName ? 'addressbook' : (existing?.source || 'addressbook'));
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source });
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, imgUrl: sanitizeImgUrl(c.imgUrl), source });
 			}
 			fileLog(`[Contacts] upsert: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -74,7 +89,7 @@ export class ContactsService {
 				const hasName = !!(c.name || c.notify);
 				const jidSource = classifyJidSource(c.id);
 				const source = jidSource === 'other' ? (existing?.source || 'other') : (hasName ? 'addressbook' : (existing?.source || 'addressbook'));
-				this.contacts.set(c.id, { ...(existing ?? {}), ...c, source });
+				this.contacts.set(c.id, { ...(existing ?? {}), ...c, imgUrl: sanitizeImgUrl(c.imgUrl), source });
 			}
 			fileLog(`[Contacts] update: ${contacts.length} contacts (total: ${this.contacts.size})`);
 			this.scheduleSave();
@@ -90,13 +105,19 @@ export class ContactsService {
 			// One-time cleanup: demote non-personal JIDs (newsletters, LIDs, broadcasts)
 			// that were previously mis-tagged as 'addressbook'.
 			let demoted = 0;
+			let cleaned = 0;
 			for (const [id, c] of this.contacts) {
+				const imgUrl = sanitizeImgUrl(c.imgUrl);
+				if (imgUrl !== c.imgUrl) {
+					this.contacts.set(id, { ...c, imgUrl });
+					cleaned++;
+				}
 				if (c.source === 'addressbook' && classifyJidSource(id) === 'other') {
 					this.contacts.set(id, { ...c, source: 'other' });
 					demoted++;
 				}
 			}
-			if (demoted > 0) this.scheduleSave();
+			if (demoted > 0 || cleaned > 0) this.scheduleSave();
 			fileLog(`[Contacts] loaded ${this.contacts.size} contacts from disk (demoted ${demoted} non-personal)`);
 		} catch {
 			fileLog('[Contacts] no contacts file yet — starting fresh');
@@ -189,6 +210,42 @@ export class ContactsService {
 			return await socket.profilePictureUrl?.(jid, 'image');
 		} catch {
 			return undefined;
+		}
+	}
+
+	/**
+	 * Fetch the avatar of a contact or a group as image bytes.
+	 * Works for group JIDs too: WhatsApp answers the profile-picture query
+	 * with the group icon.
+	 */
+	async fetchProfilePicture(jid: string): Promise<ProfilePicture | null> {
+		const socket = this.socket;
+		if (!socket?.profilePictureUrl) return null;
+
+		let url: string | undefined;
+		for (const type of ['image', 'preview'] as const) {
+			try {
+				url = await socket.profilePictureUrl(jid, type);
+			} catch {
+				url = undefined;
+			}
+			if (url) break;
+		}
+		if (!url) return null;
+
+		try {
+			const response = await fetch(url, {
+				headers: { 'User-Agent': 'whatsapp-pi/1.0' },
+			});
+			if (!response.ok) return null;
+			const buffer = Buffer.from(await response.arrayBuffer());
+			if (buffer.length === 0) return null;
+			const contentType = response.headers.get('content-type')?.split(';')[0]?.trim();
+			const mimeType =
+				contentType && contentType.startsWith('image/') ? contentType : 'image/jpeg';
+			return { url, base64: buffer.toString('base64'), mimeType };
+		} catch {
+			return null;
 		}
 	}
 

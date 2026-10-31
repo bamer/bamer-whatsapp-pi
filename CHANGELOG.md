@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.13.0] - 2026-10-31
+
+### Fixed
+- **Own messages stored as incoming ("Christophe replying to himself")**: messages sent from the operator's phone arrive on the extension's own WhatsApp account with `fromMe=true`. They were recorded in the recents store as *incoming* under the contact, using the operator's push name ("Ben") as the conversation name — so a contact looked like he was answering himself. Own messages are now stored as **outgoing** and keep the contact's name; groups keep their subject. The attribution rules live in `attributeIncomingMessage()`.
+- **Duplicated outgoing messages**: the echo of a message sent by this extension was recorded a second time (as incoming) next to the original. Extension-sent echoes are now skipped in `handleIncomingMessages()` before they reach the recorder, the prompt handler or the recents store.
+
+### Added
+- **Real contact and group photos**: the "Fetch profile photo" action (contact detail) and the new "Show Group Photo" action (allowed group) now download the avatar and display the **actual image** in the terminal instead of only printing a URL. The picture is saved under `whatsapp-medias/photos/<jid>.<ext>` so it can be re-sent later.
+- **`get_wa_photo` tool**: fetch the WhatsApp avatar of a contact or a group by `jid` or by `name`; returns the saved file path and the image itself (so it can be attached to a reply).
+
+### Fixed (data)
+- **Polluted `imgUrl`**: WhatsApp stores `changed`/`removed` in the contact `imgUrl` field (71 entries). Only real `http(s)` URLs are kept now; the others are dropped on load and on socket events.
+
+
 ## [1.12.9] - 2026-10-28
 
 ### Fixed

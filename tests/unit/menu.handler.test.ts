@@ -100,7 +100,7 @@ describe('MenuHandler', () => {
         const { whatsappService, sessionManager, recentsService } = createServices();
         whatsappService.getEffectiveStatus.mockReturnValue('logged-out');
         const ctx = createContext({ selects: ['Connect WhatsApp'] });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -114,7 +114,7 @@ describe('MenuHandler', () => {
         sessionManager.getStatus.mockReturnValue('connected');
         whatsappService.getEffectiveStatus.mockReturnValue('disconnected');
         const ctx = createContext({ selects: ['Back'] });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -128,7 +128,7 @@ describe('MenuHandler', () => {
     it('disconnects WhatsApp from the root menu when connected', async () => {
         const { whatsappService, sessionManager, recentsService } = createServices();
         const ctx = createContext({ selects: ['Disconnect WhatsApp'] });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -143,7 +143,7 @@ describe('MenuHandler', () => {
             selects: ['Logoff (Delete Session)'],
             confirms: [true]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -162,7 +162,7 @@ describe('MenuHandler', () => {
             selects: ['Allowed Contacts', 'Add Contact', 'Back', 'Back'],
             inputs: ['+5511999998888']
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -183,7 +183,7 @@ describe('MenuHandler', () => {
             selects: ['Allowed Contacts', 'Ana [+5511999998888] (+5511999998888)', 'Send Message', 'Back', 'Back', 'Back'],
             inputs: ['', 'Oi']
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -222,7 +222,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -249,7 +249,7 @@ describe('MenuHandler', () => {
             selects: ['Allowed Groups', 'Add Group', 'Back', 'Back'],
             inputs: ['120363999@g.us']
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -278,7 +278,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -286,6 +286,7 @@ describe('MenuHandler', () => {
             'History',
             'Send Message',
             'Print Group JID',
+            'Show Group Photo',
             'Remove Alias',
             'Remove Group',
             'Back'
@@ -323,7 +324,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -367,7 +368,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         vi.mocked(showMessageDetailView).mockResolvedValueOnce('reply');
 
@@ -415,7 +416,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -442,7 +443,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -493,7 +494,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
@@ -547,7 +548,7 @@ describe('MenuHandler', () => {
                 'Back'
             ]
         });
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 

@@ -814,7 +814,8 @@ export class WhatsAppService {
             remoteJid,
             pushName: message.pushName || undefined,
             text,
-            timestamp: this.getIncomingTimestamp(message.messageTimestamp)
+            timestamp: this.getIncomingTimestamp(message.messageTimestamp),
+            fromMe: message.key.fromMe === true
         })).catch(error => {
             if (this.verboseMode) {
                 fileLog(t('service.whatsapp.failedRecordRecentMessage') + ' ' + error);
@@ -847,6 +848,15 @@ export class WhatsAppService {
             const isUpdateTarget = await this.sessionManager.isAllowedUpdateTarget(remoteJid);
             fileLog(`[DEBUG] fromMe: remoteJid=${remoteJid}, isGroup=${isGroup}, isAllowed=${isAllowed}, isUpdateTarget=${isUpdateTarget}`);
             if (!isAllowed && !isUpdateTarget) return;
+        }
+
+        // Echo of a message sent by THIS extension: it was already recorded as
+        // outgoing when sent. Re-ingesting it as incoming duplicated every
+        // outgoing message in the recents list and made it look like the
+        // contact was replying to himself.
+        if (message.key.fromMe && this.wasSentByExtension(remoteJid, message.key.id)) {
+            fileLog(`[DEBUG] Skipped: echo of an extension-sent message`);
+            return;
         }
 
         const text = this.extractText(message.message);

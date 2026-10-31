@@ -4,6 +4,7 @@ import type { SyncedContact } from "../../services/contacts.service.js";
 import { fileLog } from "../../services/storage-path.js";
 import { SearchableContactList } from "../searchable-list.js";
 import type { MenuEnv } from "./menu-context.js";
+import { showProfilePhoto } from "./photo.helper.js";
 
 export async function manageContactsList(ctx: ExtensionCommandContext, env: MenuEnv) {
 	const contactsService = env.whatsappService.getContactsService();
@@ -96,21 +97,7 @@ export async function manageContactDetail(ctx: ExtensionCommandContext, env: Men
 	const choice = await ctx.ui.select(title, options);
 
 	if (choice === fetchPhotoLabel) {
-		const socket = env.whatsappService.getSocket();
-		if (socket?.profilePictureUrl) {
-			try {
-				const url = await socket.profilePictureUrl(contact.id, "image");
-				if (url) {
-					ctx.ui.notify(t("menu.contacts.contact.photoUrl", { url }), "info");
-				} else {
-					ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
-				}
-			} catch {
-				ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
-			}
-		} else {
-			ctx.ui.notify(t("menu.contacts.contact.photoError"), "warning");
-		}
+		await showProfilePhoto(ctx, env, contact.id, displayName);
 		await manageContactDetail(ctx, env, contact);
 		return;
 	}

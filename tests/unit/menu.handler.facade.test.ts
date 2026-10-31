@@ -56,7 +56,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
 
     it('connect: shows alreadyConnected when status is connected', async () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([t('menu.root.connectWhatsApp')]);
 
         await handler.handleCommand(ctx as any);
@@ -69,7 +69,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
         sessionManager.isRegistered.mockResolvedValue(false);
         whatsappService.getEffectiveStatus.mockReturnValue('disconnected');
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([t('menu.root.connectWhatsApp')]);
 
         await handler.handleCommand(ctx as any);
@@ -83,7 +83,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
     it('disconnect without connection reports alreadyDisconnected', async () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
         whatsappService.getEffectiveStatus.mockReturnValue('disconnected');
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([t('menu.root.disconnectWhatsApp')]);
 
         await handler.handleCommand(ctx as any);
@@ -94,7 +94,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
 
     it('disconnect stops the service and warns', async () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([t('menu.root.disconnectWhatsApp')]);
 
         await handler.handleCommand(ctx as any);
@@ -105,7 +105,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
 
     it('logoff asks for confirmation then logs out and deletes the session', async () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([
             t('menu.root.logoffDeleteSession'),
             t('menu.root.settings'),
@@ -121,7 +121,7 @@ describe('MenuHandler facade — root dispatch branches', () => {
 
     it('logoff keeps the session when confirmation is declined', async () => {
         const { whatsappService, sessionManager, recentsService } = makeEnv();
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         const ctx = makeCtx([
             t('menu.root.logoffDeleteSession'),
             t('menu.root.settings'),
@@ -195,7 +195,7 @@ describe('MenuHandler facade — domain dispatch', () => {
             getConversationHistory: vi.fn().mockResolvedValue([]),
             recordMessage: vi.fn()
         };
-        const handler = new MenuHandler(whatsappService as any, sessionManager as any, recentsService as any);
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
         return { handler, whatsappService, sessionManager, recentsService };
     };
 

@@ -11,11 +11,15 @@ import { AudioService } from "./src/services/audio.service.js";
 import { IncomingMediaService } from "./src/services/incoming-media.service.js";
 import { extractIncomingText } from "./src/services/incoming-message.resolver.js";
 import { ReactionSender } from "./src/services/reaction.sender.js";
-import { RecentsService } from "./src/services/recents.service.js";
+import {
+	attributeIncomingMessage,
+	RecentsService,
+} from "./src/services/recents.service.js";
 import { SessionManager } from "./src/services/session.manager.js";
 import { WhatsAppPiLogger } from "./src/services/whatsapp-pi.logger.js";
 import { WhatsAppService } from "./src/services/whatsapp.service.js";
 import { MenuHandler } from "./src/ui/menu.handler.js";
+import { saveProfilePicture } from "./src/ui/menu/photo.helper.js";
 
 // --- Extension Context Mode Helpers ---
 // Determines if Pi is running in an interactive mode where long-lived connections
@@ -168,6 +172,7 @@ export default function (pi: ExtensionAPI) {
 	const audioService = new AudioService(logger);
 	const incomingMediaService = new IncomingMediaService(audioService, logger);
 	const menuHandler = new MenuHandler(
+		pi,
 		whatsappService,
 		sessionManager,
 		recentsService,
@@ -312,18 +317,21 @@ export default function (pi: ExtensionAPI) {
 			const isGroup = message.remoteJid.endsWith("@g.us");
 			const senderNumber =
 				isGroup ? message.remoteJid : `+${message.remoteJid.split("@")[0]}`;
+			// Messages written from the operator's own phone (same WhatsApp
+			// account as this extension) arrive with fromMe=true: they are
+			// OUTGOING (the operator replied), never an incoming answer.
+			const attribution = attributeIncomingMessage({
+				fromMe: message.fromMe,
+				isGroup,
+				pushName: message.pushName,
+				groupSubject: whatsappService.getGroupSubject(message.remoteJid),
+			});
 			await recentsService.recordMessage({
 				messageId: message.id,
 				senderNumber,
-				// For groups, pushName is the *participant* who sent the message,
-				// not the group's name — storing it polluted the group display
-				// name ("Ben sent to Ben (group)"). Use the real subject instead.
-				senderName:
-					isGroup ?
-						whatsappService.getGroupSubject(message.remoteJid)
-					:	message.pushName,
+				senderName: attribution.senderName,
 				text: message.text || "",
-				direction: "incoming",
+				direction: attribution.direction,
 				timestamp: message.timestamp,
 			});
 		});
@@ -981,6 +989,125 @@ export default function (pi: ExtensionAPI) {
 					{
 						type: "text" as const,
 						text: JSON.stringify(result),
+					},
+				],
+			};
+		},
+	});
+
+	// Register get_wa_photo tool (LLM-callable, read-only)
+	pi.registerTool({
+		name: "get_wa_photo",
+		label: "Get WhatsApp Photo",
+		description:
+			"Fetch the WhatsApp profile picture (avatar) of a contact or a group and save it locally. Give either 'jid' (5511999998888@s.whatsapp.net or 120363012345@g.us) or 'name' (contact/group name). Returns the saved file path plus the image itself.",
+		promptSnippet:
+			"get_wa_photo(jid or name) - Get the WhatsApp avatar of a contact or group; returns a local file path and the image.",
+		parameters: Type.Object({
+			jid: Type.Optional(
+				Type.String({ description: "WhatsApp JID of the contact or group" }),
+			),
+			name: Type.Optional(
+				Type.String({ description: "Contact or group name (case-insensitive)" }),
+			),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+			const resolveJid = (): string | undefined => {
+				const raw = params.jid?.trim();
+				if (raw) {
+					if (raw.includes("@")) return raw;
+					const digits = raw.replace(/\D/g, "");
+					return digits ? `+${digits}@s.whatsapp.net` : undefined;
+				}
+				const needle = params.name?.trim().toLowerCase();
+				if (!needle) return undefined;
+				const matches = (value: string | undefined) =>
+					(value ?? "").toLowerCase().includes(needle);
+				const group = sessionManager
+					.getAllowedGroups()
+					.find((g) => matches(g.name) || matches(g.number));
+				if (group) return group.number;
+				const allowed = sessionManager
+					.getAllowList()
+					.find((c) => matches(c.name) || matches(c.number));
+				if (allowed) {
+					const digits = allowed.number.replace(/\D/g, "");
+					return digits ? `+${digits}@s.whatsapp.net` : allowed.number;
+				}
+				const synced = whatsappService
+					.getContactsService()
+					.getAllContacts()
+					.find(
+						(c) =>
+							matches(c.name) ||
+							matches(c.notify) ||
+							matches(c.phoneNumber) ||
+							matches(c.id),
+					);
+				return synced?.id;
+			};
+
+			const jid = resolveJid();
+			if (!jid) {
+				return {
+					isError: true,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: false,
+								error:
+									"No contact or group matches. Provide a 'jid' or a 'name'.",
+							}),
+						},
+					],
+				};
+			}
+
+			const picture = await whatsappService
+				.getContactsService()
+				.fetchProfilePicture(jid);
+			if (!picture) {
+				return {
+					isError: true,
+					details: undefined,
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify({
+								success: false,
+								jid,
+								error: "WhatsApp has no photo for this contact or group.",
+							}),
+						},
+					],
+				};
+			}
+
+			const path = await saveProfilePicture(jid, picture);
+			const contact = whatsappService
+				.getContactsService()
+				.getContact(jid);
+			return {
+				isError: false,
+				details: { jid, path, url: picture.url, mimeType: picture.mimeType },
+				content: [
+					{
+						type: "text" as const,
+						text: JSON.stringify({
+							success: true,
+							jid,
+							name: contact?.name || contact?.notify,
+							path,
+							url: picture.url,
+							mimeType: picture.mimeType,
+						}),
+					},
+					{
+						type: "image" as const,
+						data: picture.base64,
+						mimeType: picture.mimeType,
 					},
 				],
 			};

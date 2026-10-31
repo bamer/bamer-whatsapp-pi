@@ -4,6 +4,7 @@ import { SessionManager, type Contact } from "../../services/session.manager.js"
 import { fileLog } from "../../services/storage-path.js";
 import type { MenuEnv } from "./menu-context.js";
 import { showConversationHistoryForContact } from "./recents.menu.js";
+import { showProfilePhoto } from "./photo.helper.js";
 import {
 	formatAllowedGroupOption,
 	sendPromptedMenuMessage,
@@ -71,8 +72,9 @@ export async function manageAllowedGroup(
 	const removeAliasLabel = t("menu.allowedGroups.group.removeAlias");
 	const addAliasLabel = t("menu.allowedGroups.group.addAlias");
 	const removeGroupLabel = t("menu.allowedGroups.group.removeGroup");
+	const photoLabel = t("menu.allowedGroups.group.photo");
 	const backLabel = t("menu.allowedGroups.group.back");
-	const options = [historyLabel, sendMessageLabel, printGroupLabel];
+	const options = [historyLabel, sendMessageLabel, printGroupLabel, photoLabel];
 	if (group.name) {
 		options.push(removeAliasLabel);
 	} else {
@@ -106,6 +108,12 @@ export async function manageAllowedGroup(
 
 	if (choice === printGroupLabel) {
 		printAllowedGroup(ctx, group.number);
+		await manageAllowedGroup(ctx, env, group);
+		return;
+	}
+
+	if (choice === photoLabel) {
+		await showProfilePhoto(ctx, env, group.number, group.name || group.number);
 		await manageAllowedGroup(ctx, env, group);
 		return;
 	}

@@ -3,6 +3,15 @@ import { resetI18n, t } from '../../../src/i18n.ts';
 import { manageContactsList } from '../../../src/ui/menu/contacts.menu.ts';
 import { makeCtx, makeEnv } from './menu-test-utils.ts';
 
+const photoMocks = vi.hoisted(() => ({
+	showProfilePhoto: vi.fn().mockResolvedValue(null)
+}));
+
+vi.mock('../../../src/ui/menu/photo.helper.ts', () => ({
+	showProfilePhoto: photoMocks.showProfilePhoto,
+	saveProfilePicture: vi.fn()
+}));
+
 const BACK = () => t('menu.root.back');
 const FILTER_PERSONAL = (n: number) => t('menu.contacts.filterPersonal', { count: n });
 const FILTER_ALL = (n: number) => t('menu.contacts.filterAll', { count: n });
@@ -13,6 +22,7 @@ describe('contacts.menu', () => {
 
 	beforeEach(() => {
 		resetI18n();
+		photoMocks.showProfilePhoto.mockClear();
 		env = makeEnv();
 		contactsService = env.whatsappService.getContactsService();
 	});
@@ -49,8 +59,6 @@ describe('contacts.menu', () => {
 			.mockReturnValue(3)
 			.mockReturnValueOnce(2);
 		(contactsService.getContactsBySource as any).mockReturnValue([contact]);
-		const socket = { profilePictureUrl: vi.fn().mockResolvedValue('https://pic.example/a.jpg') };
-		(env.whatsappService.getSocket as any).mockReturnValue(socket);
 		const ctx = makeCtx({
 			selects: [
 				FILTER_PERSONAL(3),
@@ -63,8 +71,11 @@ describe('contacts.menu', () => {
 		await manageContactsList(ctx as any, env);
 
 		expect(contactsService.getContactsBySource).toHaveBeenCalledWith('addressbook');
-		expect(ctx.ui.notify).toHaveBeenCalledWith(
-			t('menu.contacts.contact.photoUrl', { url: 'https://pic.example/a.jpg' }), 'info'
+		expect(photoMocks.showProfilePhoto).toHaveBeenCalledWith(
+			ctx,
+			env,
+			'5511999998888@s.whatsapp.net',
+			'Ana'
 		);
 	});
 
@@ -104,7 +115,7 @@ describe('contacts.menu', () => {
 	});
 
 	describe('manageContactDetail — photo fetch branches', () => {
-		async function drivePhoto(socket: any) {
+		async function drivePhoto() {
 			const contact: any = {
 				id: '5511999998888@s.whatsapp.net',
 				name: 'Ana',
@@ -116,7 +127,6 @@ describe('contacts.menu', () => {
 				.mockReturnValue(1)
 				.mockReturnValueOnce(0);
 			(contactsService.getAllContacts as any).mockReturnValue([contact]);
-			(env.whatsappService.getSocket as any).mockReturnValue(socket);
 			const ctx = makeCtx({
 				selects: [
 					FILTER_ALL(1),
@@ -129,43 +139,19 @@ describe('contacts.menu', () => {
 			return { ctx, contact };
 		}
 
-		it('reports the photo URL on success', async () => {
-			const socket = { profilePictureUrl: vi.fn().mockResolvedValue('https://ok') };
-			const { ctx } = await drivePhoto(socket);
+		it('shows the real photo of the selected contact', async () => {
+			const { ctx } = await drivePhoto();
 
-			expect(ctx.ui.notify).toHaveBeenCalledWith(
-				t('menu.contacts.contact.photoUrl', { url: 'https://ok' }), 'info'
-			);
-		});
-
-		it('warns when the URL is undefined', async () => {
-			const socket = { profilePictureUrl: vi.fn().mockResolvedValue(undefined) };
-			const { ctx } = await drivePhoto(socket);
-
-			expect(ctx.ui.notify).toHaveBeenCalledWith(
-				t('menu.contacts.contact.photoError'), 'warning'
-			);
-		});
-
-		it('warns when the lookup throws', async () => {
-			const socket = { profilePictureUrl: vi.fn().mockRejectedValue(new Error('nope')) };
-			const { ctx } = await drivePhoto(socket);
-
-			expect(ctx.ui.notify).toHaveBeenCalledWith(
-				t('menu.contacts.contact.photoError'), 'warning'
-			);
-		});
-
-		it('warns immediately when there is no socket', async () => {
-			const { ctx } = await drivePhoto(undefined);
-
-			expect(ctx.ui.notify).toHaveBeenCalledWith(
-				t('menu.contacts.contact.photoError'), 'warning'
+			expect(photoMocks.showProfilePhoto).toHaveBeenCalledWith(
+				ctx,
+				env,
+				'5511999998888@s.whatsapp.net',
+				'Ana'
 			);
 		});
 
 		it('lists name, LID and status in the detail header', async () => {
-			const { ctx } = await drivePhoto(undefined);
+			const { ctx } = await drivePhoto();
 
 			const headerNotify = ctx.ui.notify.mock.calls
 				.map(([msg]) => String(msg))

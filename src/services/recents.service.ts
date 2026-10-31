@@ -17,6 +17,35 @@ export interface RecentsMessageInput {
     timestamp: number;
 }
 
+export interface IncomingAttribution {
+    direction: MessageDirection;
+    senderName?: string;
+}
+
+/**
+ * Attribute a received message for the recents store.
+ *
+ * - Messages sent by our own account (fromMe: the operator's phone or this
+ *   extension) are OUTGOING: they are the operator's replies, not answers.
+ * - Groups are named after their subject (pushName is the participant).
+ * - Own messages keep the stored conversation name: the operator's push name
+ *   ("Ben") is not the contact's name.
+ */
+export function attributeIncomingMessage(input: {
+    fromMe?: boolean;
+    isGroup: boolean;
+    pushName?: string;
+    groupSubject?: string;
+}): IncomingAttribution {
+    if (input.isGroup) {
+        return { direction: input.fromMe ? 'outgoing' : 'incoming', senderName: input.groupSubject };
+    }
+    if (input.fromMe) {
+        return { direction: 'outgoing', senderName: undefined };
+    }
+    return { direction: 'incoming', senderName: input.pushName };
+}
+
 export class RecentsService {
     private readonly storagePaths = createStoragePaths();
     private readonly dataDir = this.storagePaths.recentsDir;

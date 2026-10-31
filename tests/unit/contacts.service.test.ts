@@ -263,6 +263,76 @@ describe('ContactsService', () => {
         });
     });
 
+    describe('imgUrl sanitizing', () => {
+        it('drops non-URL imgUrl values loaded from disk', async () => {
+            f.readFile.mockResolvedValue(JSON.stringify({
+                'a@s.whatsapp.net': { id: 'a@s.whatsapp.net', name: 'Ana', imgUrl: 'changed' },
+                'b@s.whatsapp.net': { id: 'b@s.whatsapp.net', name: 'Bea', imgUrl: 'removed' },
+                'c@s.whatsapp.net': { id: 'c@s.whatsapp.net', name: 'Cleo', imgUrl: 'https://pic/c.jpg' }
+            }));
+
+            await service.load();
+
+            expect(service.getContact('a@s.whatsapp.net')?.imgUrl).toBeUndefined();
+            expect(service.getContact('b@s.whatsapp.net')?.imgUrl).toBeUndefined();
+            expect(service.getContact('c@s.whatsapp.net')?.imgUrl).toBe('https://pic/c.jpg');
+        });
+
+        it('drops non-URL imgUrl values coming from socket events', async () => {
+            const socket = makeSocket();
+            service.attach(socket as any);
+
+            await socket.handlers.get('contacts.upsert')!([
+                { id: 'a@s.whatsapp.net', name: 'Ana', imgUrl: 'changed' }
+            ]);
+
+            expect(service.getContact('a@s.whatsapp.net')?.imgUrl).toBeUndefined();
+        });
+    });
+
+    describe('fetchProfilePicture', () => {
+        it('returns the image bytes behind the profile-picture URL', async () => {
+            const socket = makeSocket();
+            service.attach(socket as any);
+            const fetchMock = vi.fn().mockResolvedValue({
+                ok: true,
+                headers: { get: () => 'image/jpeg' },
+                arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer
+            });
+            vi.stubGlobal('fetch', fetchMock);
+
+            const picture = await service.fetchProfilePicture('g@g.us');
+
+            expect(socket.profilePictureUrl).toHaveBeenCalledWith('g@g.us', 'image');
+            expect(fetchMock).toHaveBeenCalledWith('https://example.com/pic.jpg', expect.anything());
+            expect(picture?.base64).toBe(Buffer.from([1, 2, 3]).toString('base64'));
+            expect(picture?.mimeType).toBe('image/jpeg');
+            vi.unstubAllGlobals();
+        });
+
+        it('falls back to the preview URL and returns null when nothing resolves', async () => {
+            const socket = makeSocket();
+            socket.profilePictureUrl
+                .mockResolvedValueOnce(undefined)
+                .mockResolvedValueOnce('https://example.com/preview.jpg');
+            service.attach(socket as any);
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+                ok: true,
+                headers: { get: () => 'image/jpeg' },
+                arrayBuffer: async () => new Uint8Array([9]).buffer
+            }));
+
+            const picture = await service.fetchProfilePicture('a@s.whatsapp.net');
+            expect(picture).not.toBeNull();
+
+            const empty = makeSocket();
+            empty.profilePictureUrl.mockResolvedValue(undefined);
+            service.attach(empty as any);
+            await expect(service.fetchProfilePicture('b@s.whatsapp.net')).resolves.toBeNull();
+            vi.unstubAllGlobals();
+        });
+    });
+
     describe('getProfilePictureUrl', () => {
         it('returns the URL when the socket resolves', async () => {
             const socket = { profilePictureUrl: vi.fn().mockResolvedValue('https://pic') };

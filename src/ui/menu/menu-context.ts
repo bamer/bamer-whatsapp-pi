@@ -1,4 +1,7 @@
-import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+} from "@earendil-works/pi-coding-agent";
 import type { RecentsService } from "../../services/recents.service.js";
 import type { SessionManager } from "../../services/session.manager.js";
 import type { WhatsAppService } from "../../services/whatsapp.service.js";
@@ -9,6 +12,7 @@ import type { WhatsAppService } from "../../services/whatsapp.service.js";
  * functions with no hidden state.
  */
 export interface MenuDeps {
+	pi: ExtensionAPI;
 	whatsappService: WhatsAppService;
 	sessionManager: SessionManager;
 	recentsService: RecentsService;

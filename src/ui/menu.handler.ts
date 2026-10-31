@@ -1,4 +1,7 @@
-import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+} from "@earendil-works/pi-coding-agent";
 import * as qrcode from "qrcode-terminal";
 import { t } from "../i18n.js";
 import type { RecentsService } from "../services/recents.service.js";
@@ -21,6 +24,7 @@ import { manageUpdateList } from "./menu/update-targets.menu.js";
  */
 export class MenuHandler {
 	constructor(
+		private readonly pi: ExtensionAPI,
 		private readonly whatsappService: WhatsAppService,
 		private readonly sessionManager: SessionManager,
 		private readonly recentsService: RecentsService,
@@ -120,6 +124,7 @@ export class MenuHandler {
 
 	private env(): MenuEnv {
 		return {
+			pi: this.pi,
 			whatsappService: this.whatsappService,
 			sessionManager: this.sessionManager,
 			recentsService: this.recentsService,

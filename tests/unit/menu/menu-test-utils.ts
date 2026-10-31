@@ -41,12 +41,17 @@ export function makeCtx(choices: {
 
 export function makeEnv(overrides: Record<string, any> = {}): MenuEnv {
 	return {
+		pi: {
+			sendUserMessage: vi.fn().mockResolvedValue(undefined)
+		},
 		whatsappService: {
 			getContactsService: vi.fn().mockReturnValue({
 				getCount: vi.fn().mockReturnValue(0),
 				getCountBySource: vi.fn().mockReturnValue(0),
 				getContactsBySource: vi.fn().mockReturnValue([]),
 				getAllContacts: vi.fn().mockReturnValue([]),
+				getContact: vi.fn().mockReturnValue(undefined),
+				fetchProfilePicture: vi.fn().mockResolvedValue(null),
 				fetchContactsFromGroups: vi.fn().mockResolvedValue({ groups: 0, contacts: 0 }),
 				reclassifyContacts: vi.fn().mockReturnValue({ upgraded: 0, total: 0 })
 			}),

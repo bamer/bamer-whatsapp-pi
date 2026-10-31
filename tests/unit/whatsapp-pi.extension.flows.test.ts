@@ -79,7 +79,8 @@ vi.mock('../../src/services/session.manager.ts', () => ({
 vi.mock('../../src/services/whatsapp.service.ts', () => ({
     WhatsAppService: vi.fn(function () { return mocks.whatsappService; })
 }));
-vi.mock('../../src/services/recents.service.ts', () => ({
+vi.mock('../../src/services/recents.service.ts', async (importOriginal) => ({
+    ...(await importOriginal() as Record<string, unknown>),
     RecentsService: vi.fn(function () { return mocks.recentsService; })
 }));
 vi.mock('../../src/services/audio.service.ts', () => ({
@@ -374,6 +375,30 @@ describe('whatsapp-pi — message callback & session events', () => {
                 text: 'hello',
                 direction: 'incoming',
                 timestamp: 123
+            });
+        });
+
+        it('records own-phone messages as outgoing and keeps the contact name', async () => {
+            const ctx = createMockContext();
+            await pi.handlers.get('session_start')!({}, ctx);
+
+            const recorder = mocks.whatsappService.setIncomingMessageRecorder.mock.calls[0][0];
+            await recorder({
+                id: 'REC3',
+                remoteJid: '129776916394021@s.whatsapp.net',
+                pushName: 'Ben',
+                text: 'sent from my phone',
+                timestamp: 789,
+                fromMe: true
+            });
+
+            expect(mocks.recentsService.recordMessage).toHaveBeenCalledWith({
+                messageId: 'REC3',
+                senderNumber: '+129776916394021',
+                senderName: undefined,
+                text: 'sent from my phone',
+                direction: 'outgoing',
+                timestamp: 789
             });
         });
 
