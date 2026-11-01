@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { Image } from "@earendil-works/pi-tui";
 import { t } from "../../i18n.js";
 import { createStoragePaths } from "../../services/storage-path.js";
 import type { MenuEnv } from "./menu-context.js";
@@ -46,39 +45,23 @@ export async function showProfilePhoto(
 	jid: string,
 	displayName: string,
 ): Promise<SavedProfilePicture | null> {
+	// Visible feedback while WhatsApp answers (can take a few seconds).
+	ctx.ui.setStatus("wa-photo", t("menu.photo.fetching", { displayName }));
 	const picture = await env.whatsappService
 		.getContactsService()
 		.fetchProfilePicture(jid);
+	ctx.ui.setStatus("wa-photo", undefined);
 	if (!picture) {
 		ctx.ui.notify(t("menu.photo.unavailable", { displayName }), "warning");
 		return null;
 	}
 
 	const path = await saveProfilePicture(jid, picture);
-	const fileName = path.split("/").pop() ?? "photo.jpg";
 
-	// Render the real image in the TUI (kitty/iterm2); other terminals get the
-	// image fallback line plus the saved path below.
-	try {
-		await ctx.ui.custom<void>((_tui, theme, _kb, done) => {
-			const image = new Image(
-				picture.base64,
-				picture.mimeType,
-				{ fallbackColor: (text: string) => theme.fg("muted", text) },
-				{ maxWidthCells: 48, filename: fileName },
-			);
-			return {
-				render: (width: number) => image.render(width),
-				invalidate: () => image.invalidate(),
-				handleInput: (data: string) => {
-					if (data === "\x1b" || data === "\x03") done(undefined);
-				},
-			};
-		});
-	} catch {
-		// No interactive UI (print/RPC mode) — the saved path is still reported.
-	}
-
+	// Display the real image in the transcript via the "whatsapp-photo" entry
+	// renderer (never an overlay: escape sequences over the editor corrupt the
+	// TUI). The saved file path is also reported.
+	env.pi.appendEntry("whatsapp-photo", { path, mimeType: picture.mimeType });
 	ctx.ui.notify(
 		t("menu.photo.saved", { displayName, path, url: picture.url }),
 		"info",

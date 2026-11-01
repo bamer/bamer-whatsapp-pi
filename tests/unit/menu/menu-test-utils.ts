@@ -23,6 +23,7 @@ export function makeCtx(choices: {
 			input: vi.fn(async () => inputs.shift()),
 			confirm: vi.fn(async () => confirms.shift() ?? false),
 			notify: vi.fn(),
+			setStatus: vi.fn(),
 			custom: vi.fn(async (factory: any) => {
 				if (!('customResult' in choices)) return undefined;
 				let captured: any;
@@ -42,6 +43,7 @@ export function makeCtx(choices: {
 export function makeEnv(overrides: Record<string, any> = {}): MenuEnv {
 	return {
 		pi: {
+			appendEntry: vi.fn(),
 			sendUserMessage: vi.fn().mockResolvedValue(undefined)
 		},
 		whatsappService: {

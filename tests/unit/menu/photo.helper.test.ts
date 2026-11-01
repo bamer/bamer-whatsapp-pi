@@ -32,7 +32,7 @@ describe('photo.helper', () => {
 		expect(f.writeFile).toHaveBeenCalledWith(path, expect.any(Buffer));
 	});
 
-	it('shows the real image and reports the saved path', async () => {
+	it('shows the real image in the transcript and reports the saved path', async () => {
 		const env = makeEnv();
 		(env.whatsappService.getContactsService() as any).fetchProfilePicture.mockResolvedValue({
 			url: 'https://pic/a.jpg',
@@ -44,11 +44,38 @@ describe('photo.helper', () => {
 		const result = await showProfilePhoto(ctx as any, env, 'a@s.whatsapp.net', 'Ana');
 
 		expect(result?.url).toBe('https://pic/a.jpg');
-		expect(ctx.ui.custom).toHaveBeenCalledTimes(1);
+		// Transcript entry (never an overlay: overlays corrupt the TUI).
+		expect(env.pi.appendEntry).toHaveBeenCalledWith(
+			'whatsapp-photo',
+			expect.objectContaining({ mimeType: 'image/jpeg' })
+		);
+		expect(ctx.ui.custom).not.toHaveBeenCalled();
 		expect(ctx.ui.notify).toHaveBeenCalledWith(
 			expect.stringContaining('photos/a_s.whatsapp.net.jpg'),
 			'info'
 		);
+	});
+
+	it('shows a status while fetching and clears it afterwards', async () => {
+		const env = makeEnv();
+		let resolveFetch: (v: unknown) => void;
+		(env.whatsappService.getContactsService() as any).fetchProfilePicture.mockReturnValue(
+			new Promise((r) => { resolveFetch = r; })
+		);
+		const ctx = makeCtx();
+
+		const pending = showProfilePhoto(ctx as any, env, 'a@s.whatsapp.net', 'Ana');
+		await Promise.resolve();
+		expect(ctx.ui.setStatus).toHaveBeenCalledWith('wa-photo', expect.stringContaining('Ana'));
+
+		resolveFetch!({
+			url: 'https://pic/a.jpg',
+			base64: Buffer.from('img').toString('base64'),
+			mimeType: 'image/jpeg'
+		});
+		await pending;
+
+		expect(ctx.ui.setStatus).toHaveBeenLastCalledWith('wa-photo', undefined);
 	});
 
 	it('warns when WhatsApp has no photo for the contact', async () => {
@@ -63,6 +90,7 @@ describe('photo.helper', () => {
 			expect.stringContaining('Ana'),
 			'warning'
 		);
+		expect(env.pi.appendEntry).not.toHaveBeenCalled();
 		expect(ctx.ui.custom).not.toHaveBeenCalled();
 	});
 });

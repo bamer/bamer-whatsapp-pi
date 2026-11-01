@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.13.1] - 2026-11-01
+
+### Fixed
+- **Photo display no longer corrupts the TUI**: photos were rendered in a custom overlay — the kitty/iTerm2 escape sequences printed over the editor and broke the layout. Photos are now displayed **in the transcript** via a `whatsapp-photo` entry renderer, the same rendering path pi uses for tool-result images. Sessions keep only the file path; the image is read from disk.
+- **No feedback while fetching**: the profile-picture query can take several seconds and the menu looked frozen. A status (`Fetching photo of X…`) is now shown while waiting and cleared afterwards.
+
 ## [1.13.0] - 2026-10-31
 
 ### Fixed

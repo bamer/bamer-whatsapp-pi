@@ -4,7 +4,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import { readFileSync } from "fs";
-import { Text } from "@earendil-works/pi-tui";
+import { Image, Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { initI18n, t } from "./src/i18n.js";
 import { AudioService } from "./src/services/audio.service.js";
@@ -163,6 +163,25 @@ export default function (pi: ExtensionAPI) {
 	pi.registerEntryRenderer("whatsapp-echo", (entry, _opts, theme) => {
 		const data = entry.data as { content?: string };
 		return new Text(theme.fg("muted", data?.content ?? ""), 0, 0);
+	});
+
+	// Photos fetched from the menus are displayed in the TRANSCRIPT (never in
+	// an overlay: kitty/iterm2 escape sequences printed over the editor corrupt
+	// the TUI). This is the same rendering path pi uses for tool-result images.
+	// Entries are TUI-only: displayed immediately, never trigger a turn.
+	pi.registerEntryRenderer("whatsapp-photo", (entry, _opts, theme) => {
+		const data = entry.data as { path?: string; mimeType?: string };
+		try {
+			const base64 = readFileSync(data.path ?? "", "base64");
+			return new Image(
+				base64,
+				data.mimeType ?? "image/jpeg",
+				{ fallbackColor: (text) => theme.fg("muted", text) },
+				{ maxWidthCells: 48, filename: (data.path ?? "").split("/").pop() },
+			);
+		} catch {
+			return new Text(theme.fg("muted", `📷 ${data.path ?? "photo"}`), 0, 0);
+		}
 	});
 
 	const sessionManager = new SessionManager();
