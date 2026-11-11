@@ -1,6 +1,16 @@
 import { t } from '../i18n.js';
 import { extractMessageContent } from 'baileys';
 
+export interface IncomingLocation {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+    isLive: boolean;
+    /** Google Maps link with the coordinates. */
+    mapsUrl: string;
+}
+
 export type IncomingResolution =
     | { kind: 'text'; text: string }
     | { kind: 'audio'; text: string; audioMessage: any }
@@ -8,7 +18,7 @@ export type IncomingResolution =
     | { kind: 'video'; text: string; videoMessage: any }
     | { kind: 'document'; text: string; documentMessage: any }
     | { kind: 'contact'; text: string }
-    | { kind: 'location'; text: string }
+    | { kind: 'location'; text: string; location: IncomingLocation }
     | { kind: 'system'; text: string }
     | { kind: 'reaction'; text: string; reactionMessage: any }
     | { kind: 'unsupported'; text: string };
@@ -69,6 +79,29 @@ const formatProtocolMessage = (protocolMessage: any): string => {
     }
 
     return `[${typeLabel}]`;
+};
+
+const formatLocationText = (label: string, loc: IncomingLocation): string => {
+    const coords = `${loc.latitude.toFixed(5)},${loc.longitude.toFixed(5)}`;
+    const place = loc.name || loc.address || '';
+    const prefix = place ? `${label}: ${place}` : label;
+    return `${prefix} — ${loc.mapsUrl} (${coords})${loc.isLive ? ' [live]' : ''}`;
+};
+
+const resolveLocation = (message: any, isLive: boolean) => {
+    const latitude = Number(message?.degreesLatitude);
+    const longitude = Number(message?.degreesLongitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return undefined;
+    const coords = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
+    const loc: IncomingLocation = {
+        latitude,
+        longitude,
+        name: message?.name || undefined,
+        address: message?.address || undefined,
+        isLive,
+        mapsUrl: `https://maps.google.com/?q=${coords}`
+    };
+    return { loc, text: formatLocationText(t('incoming.media.location'), loc) };
 };
 
 export const extractIncomingText = (message: any): IncomingResolution => {
@@ -133,8 +166,10 @@ export const extractIncomingText = (message: any): IncomingResolution => {
         return { kind: 'contact', text: t('incoming.media.contact') };
     }
 
-    if (resolved?.locationMessage) {
-        return { kind: 'location', text: t('incoming.media.location') };
+    const location = resolveLocation(resolved?.locationMessage, false)
+        ?? resolveLocation(resolved?.liveLocationMessage, true);
+    if (location) {
+        return { kind: 'location', text: location.text, location: location.loc };
     }
 
     if (resolved?.buttonsResponseMessage?.selectedDisplayText) {

@@ -9,6 +9,7 @@ import P from 'pino';
 import { t } from '../i18n.js';
 import { IncomingMessage, MessageResult, SessionStatus } from '../models/whatsapp.types.js';
 import { installBaileysConsoleFilter } from './baileys-console-filter.js';
+import { extractIncomingText } from './incoming-message.resolver.js';
 import { ContactsService } from './contacts.service.js';
 import { MessageSender } from './message.sender.js';
 import { SessionManager } from './session.manager.js';
@@ -786,7 +787,12 @@ export class WhatsAppService {
     }
 
     private extractText(message: IncomingMessageContent | undefined): string {
-        return message?.conversation || message?.extendedTextMessage?.text || '';
+        const direct = message?.conversation || message?.extendedTextMessage?.text;
+        if (direct) return direct;
+        // Non-text kinds (location, media...) still deserve a useful preview in
+        // the recents store: the resolver renders them with their details
+        // (e.g. location coordinates + maps link).
+        return extractIncomingText(message as any)?.text ?? '';
     }
 
     private isPiGeneratedMessage(text: string): boolean {

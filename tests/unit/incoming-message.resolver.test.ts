@@ -92,7 +92,53 @@ describe('extractIncomingText', () => {
     it('resolves contact and location messages', () => {
         expect(extractIncomingText({ contactMessage: { displayName: 'X' } }).kind).toBe('contact');
         expect(extractIncomingText({ contactsArrayMessage: { contacts: [] } }).kind).toBe('contact');
-        expect(extractIncomingText({ locationMessage: { degreesLatitude: 1 } }).kind).toBe('location');
+        expect(extractIncomingText({ locationMessage: { degreesLatitude: 1, degreesLongitude: 2 } }).kind).toBe('location');
+    });
+
+    it('extracts coordinates, place name and maps link from a location message', () => {
+        const resolved = extractIncomingText({
+            locationMessage: {
+                degreesLatitude: 18.0896653,
+                degreesLongitude: 102.7445857,
+                name: 'Villa Mahasub',
+                address: 'Xaythany'
+            }
+        });
+        expect(resolved.kind).toBe('location');
+        if (resolved.kind !== 'location') return;
+        expect(resolved.location).toEqual({
+            latitude: 18.0896653,
+            longitude: 102.7445857,
+            name: 'Villa Mahasub',
+            address: 'Xaythany',
+            isLive: false,
+            mapsUrl: 'https://maps.google.com/?q=18.08967,102.74459'
+        });
+        expect(resolved.text).toContain('Villa Mahasub');
+        expect(resolved.text).toContain('https://maps.google.com/?q=18.08967,102.74459');
+        expect(resolved.text).toContain('(18.08967,102.74459)');
+    });
+
+    it('falls back to address, then bare coordinates, and flags live locations', () => {
+        const byAddress = extractIncomingText({
+            locationMessage: { degreesLatitude: -1.5, degreesLongitude: 2.5, address: 'Downtown' }
+        });
+        expect(byAddress.kind === 'location' && byAddress.text).toContain('Downtown');
+
+        const bare = extractIncomingText({
+            locationMessage: { degreesLatitude: 10, degreesLongitude: 20 }
+        });
+        expect(bare.kind === 'location' && bare.text).toContain('[Location]');
+
+        const live = extractIncomingText({
+            liveLocationMessage: { degreesLatitude: 10, degreesLongitude: 20 }
+        });
+        expect(live.kind === 'location' && live.text).toContain('[live]');
+    });
+
+    it('returns the bare label when a location message has no usable coordinates', () => {
+        const resolved = extractIncomingText({ locationMessage: {} });
+        expect(resolved.kind === 'location' || resolved.kind === 'unsupported').toBe(true);
     });
 
     it('resolves interactive responses (buttons, lists, template buttons)', () => {

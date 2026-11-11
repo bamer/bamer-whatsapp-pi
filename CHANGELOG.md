@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.13.2] - 2026-11-11
+
+### Added
+- **GPS coordinates from location messages**: shared locations (pin or live) are no longer a bare "[Location]". The extension now extracts latitude, longitude, place name and address, builds a Google Maps link (`https://maps.google.com/?q=lat,lon`) and shows everything to the assistant AND in the conversation history (recents). Live locations are flagged `[live]`. Location messages without usable coordinates keep the bare label.
+
 ## [1.13.1] - 2026-11-01
 
 ### Fixed

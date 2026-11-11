@@ -156,6 +156,31 @@ describe('WhatsAppService — incoming message flows', () => {
         await service.stop();
     });
 
+    it('records location messages with coordinates in the recents preview', async () => {
+        const { service, socket } = await boot();
+
+        const payload = {
+            messages: [{
+                key: { remoteJid: '+33123456789@s.whatsapp.net', id: 'LOC-1' },
+                message: {
+                    locationMessage: {
+                        degreesLatitude: 18.0896653,
+                        degreesLongitude: 102.7445857,
+                        name: 'Villa Mahasub'
+                    }
+                },
+                messageTimestamp: 1_800_000_500
+            }]
+        };
+        await socket.handlers.get('messages.upsert')!(payload);
+
+        expect(recordedIncoming).toHaveLength(1);
+        expect(recordedIncoming[0].text).toContain('Villa Mahasub');
+        expect(recordedIncoming[0].text).toContain('https://maps.google.com/?q=18.08967,102.74459');
+
+        await service.stop();
+    });
+
     it('falls back to Date.now() for missing or junk timestamps', async () => {
         vi.spyOn(Date, 'now').mockReturnValue(77_777);
         const { service, socket } = await boot();
