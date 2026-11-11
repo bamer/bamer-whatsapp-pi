@@ -17,6 +17,8 @@ export interface Contact {
     number: string;
     name?: string;
     sendNumber?: string;
+    /** Comma-separated ISO 639-1 codes in priority order (e.g. `lo,en`). */
+    languages?: string;
 }
 
 export interface WhatsAppContact {
@@ -49,7 +51,8 @@ export class SessionManager {
             }
             if (typeof num === 'string') {
                 const sendNumber = typeof item.sendNumber === 'string' ? item.sendNumber : undefined;
-                return { number: num, name: item.name, sendNumber };
+                const languages = typeof item.languages === 'string' ? item.languages : undefined;
+                return { number: num, name: item.name, sendNumber, languages };
             }
         }
         return null;
@@ -430,6 +433,38 @@ export class SessionManager {
         if (!contact) return;
         delete contact.sendNumber;
         await this.saveConfig();
+    }
+
+    async setContactLanguages(number: string, languages: string) {
+        const contact = this.getAllowedContact(number);
+        if (!contact) return;
+        const normalized = languages.trim().toLowerCase().replace(/\s+/g, '');
+        if (normalized) {
+            contact.languages = normalized;
+        } else {
+            delete contact.languages;
+        }
+        await this.saveConfig();
+    }
+
+    getContactLanguages(number: string): string | undefined {
+        return this.getAllowedContact(number)?.languages;
+    }
+
+    async setAllowedGroupLanguages(groupJid: string, languages: string) {
+        const group = this.allowedGroups.find(c => c.number === groupJid);
+        if (!group) return;
+        const normalized = languages.trim().toLowerCase().replace(/\s+/g, '');
+        if (normalized) {
+            group.languages = normalized;
+        } else {
+            delete group.languages;
+        }
+        await this.saveConfig();
+    }
+
+    getAllowedGroupLanguages(groupJid: string): string | undefined {
+        return this.allowedGroups.find(c => c.number === groupJid)?.languages;
     }
 
     async setAllowedGroupAlias(groupJid: string, alias: string) {

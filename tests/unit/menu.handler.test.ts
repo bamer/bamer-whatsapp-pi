@@ -231,6 +231,7 @@ describe('MenuHandler', () => {
             'Add Number',
             'Print Contact',
             'Remove Alias',
+            'Set Languages',
             'Remove Contact',
             'Back'
         ]);

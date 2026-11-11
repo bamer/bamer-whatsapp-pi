@@ -72,10 +72,17 @@ export async function manageAllowedContact(
 	const removeAliasLabel = t("menu.allowed.contact.removeAlias");
 	const addAliasLabel = t("menu.allowed.contact.addAlias");
 	const removeNumberLabel = t("menu.allowed.contact.removeNumber");
+	const setLanguagesLabel = t("menu.allowed.contact.setLanguages");
+	const clearLanguagesLabel = t("menu.allowed.contact.clearLanguages");
 	const addSendNumberLabel = t("menu.allowed.contact.addNumber");
 	const removeSendNumberLabel = t("menu.allowed.contact.removeSendNumber");
 	const backLabel = t("menu.allowed.contact.back");
 	const options = [historyLabel];
+	if (contact.languages) {
+		options.push(
+			t("menu.allowed.contact.languagesCurrent", { languages: contact.languages }),
+		);
+	}
 	if (contact.sendNumber) {
 		options.push(sendMessageLabel);
 		options.push(removeSendNumberLabel);
@@ -88,7 +95,10 @@ export async function manageAllowedContact(
 	} else {
 		options.push(addAliasLabel);
 	}
-	options.push(removeNumberLabel, backLabel);
+	if (contact.languages) {
+		options.push(clearLanguagesLabel);
+	}
+	options.push(setLanguagesLabel, removeNumberLabel, backLabel);
 
 	const choice = await ctx.ui.select(title, options);
 
@@ -183,6 +193,32 @@ export async function manageAllowedContact(
 			"info",
 		);
 		await manageAllowedContact(ctx, env, { ...contact, name: undefined });
+		return;
+	}
+
+	if (choice === setLanguagesLabel) {
+		const input = await ctx.ui.input(
+			t("menu.allowed.contact.enterLanguages", { displayName }),
+		);
+		await env.sessionManager.setContactLanguages(contact.number, input ?? "");
+		const stored = env.sessionManager.getContactLanguages(contact.number);
+		ctx.ui.notify(
+			stored ?
+				t("menu.allowed.contact.languagesSet", { displayName, languages: stored })
+			:	t("menu.allowed.contact.languagesCleared", { displayName }),
+			"info",
+		);
+		await manageAllowedContact(ctx, env, { ...contact, languages: stored });
+		return;
+	}
+
+	if (choice === clearLanguagesLabel) {
+		await env.sessionManager.setContactLanguages(contact.number, "");
+		ctx.ui.notify(
+			t("menu.allowed.contact.languagesCleared", { displayName }),
+			"info",
+		);
+		await manageAllowedContact(ctx, env, { ...contact, languages: undefined });
 		return;
 	}
 

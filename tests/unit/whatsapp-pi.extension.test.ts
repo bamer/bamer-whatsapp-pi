@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => {
         getLogMaxSizeMB: vi.fn().mockReturnValue(5),
         getLogRetentionDays: vi.fn().mockReturnValue(7),
         getUpdateList: vi.fn().mockReturnValue([]),
+        getContactLanguages: vi.fn().mockReturnValue(undefined),
+        getAllowedGroupLanguages: vi.fn().mockReturnValue(undefined),
         isAllowedUpdateTarget: vi.fn().mockResolvedValue(false)
     });
 

@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => {
         getFooterMode: vi.fn().mockReturnValue("full"),
         isAllowedUpdateTarget: vi.fn().mockResolvedValue(false),
         setGroupJidForAuth: vi.fn(),
+        getContactLanguages: vi.fn().mockReturnValue(undefined),
+        getAllowedGroupLanguages: vi.fn().mockReturnValue(undefined),
         getAssistantName: vi.fn().mockReturnValue('Carl')
     });
 
@@ -181,6 +183,39 @@ describe('whatsapp-pi — message callback & session events', () => {
         const calls = pi.appendEntry.mock.calls;
         return calls[calls.length - 1][1].content;
     };
+
+    it('adds a [speaks: …] language tag from the stored contact hint', async () => {
+        mocks.sessionManager.getContactLanguages.mockReturnValue('lo,en');
+
+        await messageCallback!(dm('hello there', { key: { id: 'L1' } }));
+
+        expect(pi.sendUserMessage).toHaveBeenCalledWith(
+            expect.stringContaining('[speaks: Lao, English]'),
+            expect.anything()
+        );
+    });
+
+    it('detects the language from the text when no hint is stored', async () => {
+        await messageCallback!(dm('ສະບາຍດີ', { key: { id: 'L2' } }));
+
+        expect(pi.sendUserMessage).toHaveBeenCalledWith(
+            expect.stringContaining('[speaks: Lao]'),
+            expect.anything()
+        );
+    });
+
+    it('adds a [group language: …] tag when the group has stored languages', async () => {
+        mocks.sessionManager.getAllowedGroupLanguages.mockReturnValue('fr');
+
+        await messageCallback!(dm('bonjour', {
+            key: { remoteJid: '120363409409770410@g.us', id: 'L3' }
+        }));
+
+        expect(pi.sendUserMessage).toHaveBeenCalledWith(
+            expect.stringContaining('[group language: French]'),
+            expect.anything()
+        );
+    });
 
     it('formats an incoming DM with the standard header', async () => {
         await messageCallback!(dm('couleur du ciel ?'));

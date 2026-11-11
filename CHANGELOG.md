@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.0] - 2026-11-12
+
+### Added
+- **Per-contact language hint (the "spoken language" field)**: a `languages` field (comma-separated ISO codes in priority order, e.g. `lo,en`) on every allowed contact AND allowed group. Editable from the menu (Allowed Contacts → contact → **Set Languages** / **Clear Languages**; shows the current value). Injected into every message header as `[speaks: Lao, English]` (DMs) and `[group language: …]` (groups) so the assistant answers in the right language.
+- **Automatic script detection as fallback**: when no hint is stored, the language is detected from the message text via Unicode ranges (Lao, Thai, Arabic, Cyrillic, Chinese, Japanese, Korean — Latin scripts are ambiguous and skipped). New `language.helper.ts` module.
+
 ## [1.13.2] - 2026-11-11
 
 ### Added

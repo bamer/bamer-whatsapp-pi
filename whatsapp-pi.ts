@@ -19,6 +19,9 @@ import { SessionManager } from "./src/services/session.manager.js";
 import { WhatsAppPiLogger } from "./src/services/whatsapp-pi.logger.js";
 import { WhatsAppService } from "./src/services/whatsapp.service.js";
 import { MenuHandler } from "./src/ui/menu.handler.js";
+import {
+	resolveContactLanguages,
+} from "./src/services/language.helper.js";
 import { saveProfilePicture } from "./src/ui/menu/photo.helper.js";
 
 // --- Extension Context Mode Helpers ---
@@ -587,13 +590,28 @@ export default function (pi: ExtensionAPI) {
 		// True when THIS extension sent the message (echo skip + [assistant] label).
 		const sentByExtension = whatsappService.wasSentByExtension(remoteJid, msg.key?.id);
 
+		// Language hint: per-contact stored field first, then script detection
+		// (e.g. Lao/Thai Unicode) so the assistant answers in the right language.
+		const languagesHint = resolveContactLanguages(
+			isGroup ? undefined : sessionManager.getContactLanguages(sender),
+			text,
+		);
+		const groupLanguages = isGroup ?
+			resolveContactLanguages(
+				sessionManager.getAllowedGroupLanguages(remoteJid ?? ""),
+				text,
+			)
+		: undefined;
+		const languagesTag = languagesHint ? ` [speaks: ${languagesHint}]` : "";
+		const groupLanguagesTag = groupLanguages ? ` [group language: ${groupLanguages}]` : "";
+
 		const messageHeader =
 			isFromMe ?
 				`${fromMeName} [${describeSender()}] sent to ${isGroup ? groupLabel : `${lookupName(sender)} (DM)`}${mediaIndicator ? ` ${mediaIndicator}` : ""}:`
 			: isOperator ? `[Operator] ${pushName} (${sender}):`
 			: isGroup ?
-				`Message from ${pushName} (${describeSender()}) in group ${groupLabel}:`
-			:	`Direct message from ${pushName} (${sender}):`;
+				`Message from ${pushName} (${describeSender()}) in group ${groupLabel}${groupLanguagesTag}:`
+			:	`Direct message from ${pushName} (${sender})${languagesTag}:`;
 
 		logger.log(`[WhatsApp-Pi] ${messageHeader} ${text}`);
 
