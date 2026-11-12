@@ -175,6 +175,77 @@ describe('SessionManager', () => {
         expect(sessionManager.getAllowedGroups()).toEqual([{ number: '120363012345@g.us', name: 'Team' }]);
     });
 
+    it('merges disk-only allowList entries and fields back when saving (multi-session safety)', async () => {
+        const configPath = join(dataDir, 'config.json');
+        await writeFile(configPath, JSON.stringify({
+            allowList: [{ number: '+1111111111', name: 'Loaded', languages: 'lo,en' }],
+            allowedGroups: [{ number: '120363012345@g.us', name: 'Team', languages: 'fr' }],
+            ignoredNumbers: [],
+            status: 'logged-out',
+            hasAuthState: false,
+            openaiKey: '',
+            visionModel: 'gpt-4o'
+        }, null, 2));
+
+        // A STALE session loaded before the languages were added: its memory
+        // still has the entries without the languages field.
+        await sessionManager.ensureInitialized();
+        sessionManager.getAllowList()[0].languages = undefined;
+
+        // Simulate another session enriching the config on disk meanwhile.
+        await writeFile(configPath, JSON.stringify({
+            allowList: [{ number: '+1111111111', name: 'Loaded', languages: 'lo,en' }],
+            allowedGroups: [{ number: '120363012345@g.us', name: 'Team', languages: 'fr' }],
+            ignoredNumbers: [],
+            status: 'logged-out',
+            hasAuthState: false,
+            openaiKey: '',
+            visionModel: 'gpt-4o'
+        }, null, 2));
+
+        // Saving from the stale session must NOT drop the disk-only fields.
+        await sessionManager.saveConfig();
+
+        const saved = JSON.parse(await readFile(configPath, 'utf-8'));
+        expect(saved.allowList[0].languages).toBe('lo,en');
+        expect(saved.allowedGroups[0].languages).toBe('fr');
+    });
+
+    it('keeps disk-only contacts added by another session when saving', async () => {
+        const configPath = join(dataDir, 'config.json');
+        await writeFile(configPath, JSON.stringify({
+            allowList: [{ number: '+1111111111', name: 'Loaded' }],
+            allowedGroups: [],
+            ignoredNumbers: [],
+            status: 'logged-out',
+            hasAuthState: false,
+            openaiKey: '',
+            visionModel: 'gpt-4o'
+        }, null, 2));
+        await sessionManager.ensureInitialized();
+
+        // Another session adds a contact on disk while ours is open.
+        await writeFile(configPath, JSON.stringify({
+            allowList: [
+                { number: '+1111111111', name: 'Loaded' },
+                { number: '+9999999999', name: 'Added Elsewhere' }
+            ],
+            allowedGroups: [],
+            ignoredNumbers: [],
+            status: 'logged-out',
+            hasAuthState: false,
+            openaiKey: '',
+            visionModel: 'gpt-4o'
+        }, null, 2));
+
+        await sessionManager.addNumber('+2222222222', 'Local');
+        await sessionManager.saveConfig();
+
+        const saved = JSON.parse(await readFile(configPath, 'utf-8'));
+        const numbers = saved.allowList.map((c: any) => c.number).sort();
+        expect(numbers).toEqual(['+1111111111', '+2222222222', '+9999999999']);
+    });
+
     it('should not reload config and overwrite in-memory allow-lists after initialization', async () => {
         const configPath = join(dataDir, 'config.json');
         await writeFile(configPath, JSON.stringify({

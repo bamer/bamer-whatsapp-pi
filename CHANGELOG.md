@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.14.1] - 2026-11-12
+
+### Fixed
+- **`config.json` no longer wiped by concurrent pi sessions**: several pi sessions share one config file, and any session saving its stale in-memory allow-list erased entries/fields added by another session (observed: the whole allow-list emptied, then the new `languages` field dropped). `saveConfig()` now re-reads the on-disk config and merges: disk-only contacts survive, and per-entry fields (`name`, `sendNumber`, `languages`) fall back to the disk value when the saving session does not have one. Explicit clears persist as empty-string sentinels, so removals still win over the merge.
+
 ## [1.14.0] - 2026-11-12
 
 ### Added

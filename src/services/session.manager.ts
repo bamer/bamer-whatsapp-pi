@@ -242,10 +242,52 @@ export class SessionManager {
             } catch {
                 // Ignore read errors, use in-memory list
             }
+
+            // Multiple pi sessions share this config file. Each session's
+            // in-memory allowList/allowedGroups may be stale (loaded before
+            // another session added entries or edited fields). Merge the
+            // on-disk lists back in before writing: keep entries that exist
+            // only on disk, and keep on-disk field values (languages, alias…)
+            // for entries this session did not touch.
+            const mergeExternal = (inMemory: Contact[], disk: Contact[]): Contact[] => {
+                const merged = new Map<string, Contact>();
+                for (const contact of disk) {
+                    merged.set(contact.number, { ...contact });
+                }
+                for (const contact of inMemory) {
+                    const existing = merged.get(contact.number);
+                    if (!existing) {
+                        merged.set(contact.number, contact);
+                        continue;
+                    }
+                    // Field-level merge: values set in memory win (an empty
+                    // string is an explicit clear); undefined fields fall back
+                    // to the on-disk value so stale sessions never wipe fields
+                    // (languages, alias...) edited by another session.
+                    const mergedContact: Contact = { number: contact.number };
+                    for (const field of ['name', 'sendNumber', 'languages'] as const) {
+                        mergedContact[field] = contact[field] !== undefined ? contact[field] : existing[field];
+                    }
+                    merged.set(contact.number, mergedContact);
+                }
+                return [...merged.values()];
+            };
+            let diskAllowList: Contact[] = [];
+            let diskAllowedGroups: Contact[] = [];
+            try {
+                const data = await readFile(this.configPath, 'utf-8');
+                const config = JSON.parse(data);
+                diskAllowList = (config.allowList || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+                diskAllowedGroups = (config.allowedGroups || []).map(SessionManager.cleanContact).filter(Boolean) as Contact[];
+            } catch {
+                // Ignore read errors, use in-memory lists
+            }
+            const allowList = mergeExternal(this.allowList, diskAllowList);
+            const allowedGroups = mergeExternal(this.allowedGroups, diskAllowedGroups);
             
             const config = {
-                allowList: this.allowList,
-                allowedGroups: this.allowedGroups,
+                allowList,
+                allowedGroups,
                 ignoredNumbers: this.ignoredNumbers,
                 updateList: externalUpdateList.length > 0 ? externalUpdateList : this.updateList,
                 status: this.status,
@@ -307,7 +349,30 @@ export class SessionManager {
     }
 
     getAllowList(): Contact[] {
-        return this.allowList;
+        return this.allowList.map(SessionManager.presentContact);
+    }
+
+    /** Internal (raw) values keep '' sentinels; readers get undefined. */
+    private static presentContact(contact: Contact): Contact {
+        return {
+            number: contact.number,
+            name: contact.name || undefined,
+            sendNumber: contact.sendNumber || undefined,
+            languages: contact.languages || undefined
+        };
+    }
+
+    private rawAllowedContact(number: string): Contact | undefined {
+        const raw = number.split('@')[0];
+        const normalized = raw.startsWith('+') ? raw : `+${raw}`;
+        return this.allowList.find(c => {
+            const listNum = c.number.startsWith('+') ? c.number : `+${c.number}`;
+            return listNum === normalized || c.number === raw || c.number === number;
+        });
+    }
+
+    private rawAllowedGroup(groupJid: string): Contact | undefined {
+        return this.allowedGroups.find(c => c.number === groupJid);
     }
 
     getAllowedContact(number: string): Contact | undefined {
@@ -320,11 +385,12 @@ export class SessionManager {
     }
 
     getAllowedGroups(): Contact[] {
-        return this.allowedGroups;
+        return this.allowedGroups.map(SessionManager.presentContact);
     }
 
     getAllowedGroup(groupJid: string): Contact | undefined {
-        return this.allowedGroups.find(c => c.number === groupJid);
+        const group = this.allowedGroups.find(c => c.number === groupJid);
+        return group ? SessionManager.presentContact(group) : undefined;
     }
 
     getIgnoredNumbers(): Contact[] {
@@ -402,7 +468,7 @@ export class SessionManager {
             return;
         }
 
-        const contact = this.getAllowedContact(number);
+        const contact = this.rawAllowedContact(number);
         if (!contact) {
             return;
         }
@@ -412,54 +478,49 @@ export class SessionManager {
     }
 
     async removeAllowedContactAlias(number: string) {
-        const contact = this.getAllowedContact(number);
+        const contact = this.rawAllowedContact(number);
         if (!contact || !contact.name) {
             return;
         }
 
-        delete contact.name;
+        // Empty string = explicitly cleared (survives multi-session config merges).
+        contact.name = '';
         await this.saveConfig();
     }
 
     async setContactSendNumber(number: string, sendNumber: string) {
-        const contact = this.getAllowedContact(number);
+        const contact = this.rawAllowedContact(number);
         if (!contact) return;
         contact.sendNumber = sendNumber.trim();
         await this.saveConfig();
     }
 
     async removeContactSendNumber(number: string) {
-        const contact = this.getAllowedContact(number);
+        const contact = this.rawAllowedContact(number);
         if (!contact) return;
-        delete contact.sendNumber;
+        contact.sendNumber = '';
         await this.saveConfig();
     }
 
     async setContactLanguages(number: string, languages: string) {
-        const contact = this.getAllowedContact(number);
+        const contact = this.rawAllowedContact(number);
         if (!contact) return;
         const normalized = languages.trim().toLowerCase().replace(/\s+/g, '');
-        if (normalized) {
-            contact.languages = normalized;
-        } else {
-            delete contact.languages;
-        }
+        // Empty string = explicitly cleared (survives multi-session config merges).
+        contact.languages = normalized || '';
         await this.saveConfig();
     }
 
     getContactLanguages(number: string): string | undefined {
-        return this.getAllowedContact(number)?.languages;
+        return this.rawAllowedContact(number)?.languages;
     }
 
     async setAllowedGroupLanguages(groupJid: string, languages: string) {
         const group = this.allowedGroups.find(c => c.number === groupJid);
         if (!group) return;
         const normalized = languages.trim().toLowerCase().replace(/\s+/g, '');
-        if (normalized) {
-            group.languages = normalized;
-        } else {
-            delete group.languages;
-        }
+        // Empty string = explicitly cleared (survives multi-session config merges).
+        group.languages = normalized || '';
         await this.saveConfig();
     }
 
@@ -473,7 +534,7 @@ export class SessionManager {
             return;
         }
 
-        const group = this.getAllowedGroup(groupJid);
+        const group = this.rawAllowedGroup(groupJid);
         if (!group) {
             return;
         }
@@ -483,12 +544,12 @@ export class SessionManager {
     }
 
     async removeAllowedGroupAlias(groupJid: string) {
-        const group = this.getAllowedGroup(groupJid);
+        const group = this.rawAllowedGroup(groupJid);
         if (!group || !group.name) {
             return;
         }
 
-        delete group.name;
+        group.name = '';
         await this.saveConfig();
     }
 
