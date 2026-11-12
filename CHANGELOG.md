@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15.0] - 2026-11-12
+
+### Changed
+- **Clearer list names (English)**: "Update Targets" is now **"Reply-enabled Contacts (Carl can reply)"** everywhere (root menu, list title, confirmations) and "Allowed Contacts" is now **"Allowed Contacts (history only — no replies)"**. Both list menus open with a one-line explanation of what each list does: Allowed = recorded for history/reports but never replied to; Reply-enabled = Carl can reply (auto-replies + `send_wa_message`).
+
+### Added
+- **Quick toggle from the allowed-contact menu**: a contact detail now shows **"Add to Reply-enabled Contacts (allow Carl to reply)"**, or **"Remove from Reply-enabled Contacts (stop replies)"** when the contact is already reply-enabled — no more digging into the second list.
+
 ## [1.14.1] - 2026-11-12
 
 ### Fixed

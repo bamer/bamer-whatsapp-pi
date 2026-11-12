@@ -17,6 +17,7 @@ export async function manageAllowList(ctx: ExtensionCommandContext, env: MenuEnv
 	const list = sortContactsAlphabetically(
 		env.sessionManager.getAllowList(),
 	);
+	ctx.ui.notify(t("menu.allowed.explanation"), "info");
 	const title = t("menu.allowed.title");
 	const addNumberLabel = t("menu.allowed.addNumber");
 	const backLabel = t("menu.root.back");
@@ -77,7 +78,17 @@ export async function manageAllowedContact(
 	const addSendNumberLabel = t("menu.allowed.contact.addNumber");
 	const removeSendNumberLabel = t("menu.allowed.contact.removeSendNumber");
 	const backLabel = t("menu.allowed.contact.back");
+	const addToUpdateLabel = t("menu.allowed.contact.addToUpdate");
+	const removeFromUpdateLabel = t("menu.allowed.contact.removeFromUpdate");
+	const inUpdateList = env.sessionManager
+		.getUpdateList()
+		.some((target) => target.number === contact.number);
 	const options = [historyLabel];
+	if (inUpdateList) {
+		options.push(removeFromUpdateLabel);
+	} else {
+		options.push(addToUpdateLabel);
+	}
 	if (contact.languages) {
 		options.push(
 			t("menu.allowed.contact.languagesCurrent", { languages: contact.languages }),
@@ -193,6 +204,26 @@ export async function manageAllowedContact(
 			"info",
 		);
 		await manageAllowedContact(ctx, env, { ...contact, name: undefined });
+		return;
+	}
+
+	if (choice === addToUpdateLabel) {
+		await env.sessionManager.addUpdateNumber(contact.number, contact.name);
+		ctx.ui.notify(
+			t("menu.allowed.contact.addedToUpdate", { displayName }),
+			"info",
+		);
+		await manageAllowedContact(ctx, env, contact);
+		return;
+	}
+
+	if (choice === removeFromUpdateLabel) {
+		await env.sessionManager.removeUpdateNumber(contact.number);
+		ctx.ui.notify(
+			t("menu.allowed.contact.removedFromUpdate", { displayName }),
+			"info",
+		);
+		await manageAllowedContact(ctx, env, contact);
 		return;
 	}
 

@@ -57,6 +57,9 @@ const createServices = () => {
         getStatus: vi.fn().mockReturnValue('connected'),
         isRegistered: vi.fn().mockResolvedValue(false),
         getAllowList: vi.fn().mockReturnValue([]),
+        getUpdateList: vi.fn().mockReturnValue([]),
+        addUpdateNumber: vi.fn().mockResolvedValue(undefined),
+        removeUpdateNumber: vi.fn().mockResolvedValue(undefined),
         addNumber: vi.fn().mockResolvedValue(undefined),
         removeNumber: vi.fn().mockResolvedValue(undefined),
         setAllowedContactAlias: vi.fn().mockResolvedValue(undefined),
@@ -159,14 +162,14 @@ describe('MenuHandler', () => {
             { number: '+1', name: 'Ana' }
         ]);
         const ctx = createContext({
-            selects: ['Allowed Contacts', 'Add Contact', 'Back', 'Back'],
+            selects: ['Allowed Contacts (history only — no replies)', 'Add Contact', 'Back', 'Back'],
             inputs: ['+5511999998888']
         });
         const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
 
         await handler.handleCommand(ctx as any);
 
-        expect(ctx.ui.select).toHaveBeenCalledWith('Allowed Contacts', [
+        expect(ctx.ui.select).toHaveBeenCalledWith('Allowed Contacts (history only — no replies)', [
             'Ana [+1]',
             'Zoey [+2]',
             'Add Contact',
@@ -180,7 +183,7 @@ describe('MenuHandler', () => {
         const { whatsappService, sessionManager, recentsService } = createServices();
         sessionManager.getAllowList.mockReturnValue([{ number: '+5511999998888', name: 'Ana', sendNumber: '+5511999998888' }]);
         const ctx = createContext({
-            selects: ['Allowed Contacts', 'Ana [+5511999998888] (+5511999998888)', 'Send Message', 'Back', 'Back', 'Back'],
+            selects: ['Allowed Contacts (history only — no replies)', 'Ana [+5511999998888] (+5511999998888)', 'Send Message', 'Back', 'Back', 'Back'],
             inputs: ['', 'Oi']
         });
         const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
@@ -211,7 +214,7 @@ describe('MenuHandler', () => {
         ]);
         const ctx = createContext({
             selects: [
-                'Allowed Contacts',
+                'Allowed Contacts (history only — no replies)',
                 'Ana [+5511999998888]',
                 'Print Contact',
                 'Back',
@@ -228,6 +231,7 @@ describe('MenuHandler', () => {
 
         expect(ctx.ui.select).toHaveBeenCalledWith('Allowed Contact • Ana [+5511999998888]', [
             'History',
+            'Add to Reply-enabled Contacts (allow Carl to reply)',
             'Add Number',
             'Print Contact',
             'Remove Alias',
@@ -238,6 +242,53 @@ describe('MenuHandler', () => {
         // Source now logs via fileLog (appendFileSync) — assert the TUI output only.
         expect(ctx.ui.notify).toHaveBeenCalledWith('+5511999998888', 'info');
         expect(ctx.ui.notify).toHaveBeenCalledWith('+5511999998888\n+553291297719', 'info');
+    });
+
+    it('adds an allowed contact to the reply-enabled list from the contact menu', async () => {
+        const { whatsappService, sessionManager, recentsService } = createServices();
+        sessionManager.getAllowList.mockReturnValue([{ number: '+5511999998888', name: 'Ana' }]);
+        const ctx = createContext({
+            selects: [
+                'Allowed Contacts (history only — no replies)',
+                'Ana [+5511999998888]',
+                'Add to Reply-enabled Contacts (allow Carl to reply)',
+                'Back',
+                'Back'
+            ]
+        });
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
+
+        await handler.handleCommand(ctx as any);
+
+        expect(sessionManager.addUpdateNumber).toHaveBeenCalledWith('+5511999998888', 'Ana');
+        expect(ctx.ui.notify).toHaveBeenCalledWith(
+            'Ana [+5511999998888] added to Reply-enabled Contacts — Carl can now reply.',
+            'info'
+        );
+    });
+
+    it('removes a contact from the reply-enabled list when already a member', async () => {
+        const { whatsappService, sessionManager, recentsService } = createServices();
+        sessionManager.getAllowList.mockReturnValue([{ number: '+5511999998888', name: 'Ana' }]);
+        sessionManager.getUpdateList.mockReturnValue([{ number: '+5511999998888', name: 'Ana' }]);
+        const ctx = createContext({
+            selects: [
+                'Allowed Contacts (history only — no replies)',
+                'Ana [+5511999998888]',
+                'Remove from Reply-enabled Contacts (stop replies)',
+                'Back',
+                'Back'
+            ]
+        });
+        const handler = new MenuHandler({} as any, whatsappService as any, sessionManager as any, recentsService as any);
+
+        await handler.handleCommand(ctx as any);
+
+        expect(sessionManager.removeUpdateNumber).toHaveBeenCalledWith('+5511999998888');
+        expect(ctx.ui.notify).toHaveBeenCalledWith(
+            'Ana [+5511999998888] removed from Reply-enabled Contacts — messages stay recorded, replies stop.',
+            'info'
+        );
     });
 
     it('sorts allowed groups and adds a valid group JID', async () => {

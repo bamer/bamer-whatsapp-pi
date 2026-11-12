@@ -10,6 +10,7 @@ export async function manageUpdateList(ctx: ExtensionCommandContext, env: MenuEn
 	const list = sortContactsAlphabetically(
 		env.sessionManager.getUpdateList(),
 	);
+	ctx.ui.notify(t("menu.updateTargets.explanation"), "info");
 	const title = t("menu.updateTargets.title");
 	const addNumberLabel = t("menu.updateTargets.addNumber");
 	const backLabel = t("menu.root.back");
