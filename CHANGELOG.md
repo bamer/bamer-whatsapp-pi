@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.15.1] - 2026-11-12
+
+### Fixed
+- **Own group messages no longer displayed twice**: Ben's phone messages to an allowed group were shown once as an echo entry AND once as the assistant prompt — two identical lines in the transcript. The echo entry is now only used for display-only messages (DMs, extension echoes); group prompts render once, as the prompt itself.
+
 ## [1.15.0] - 2026-11-12
 
 ### Changed

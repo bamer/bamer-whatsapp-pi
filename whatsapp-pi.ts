@@ -621,9 +621,14 @@ export default function (pi: ExtensionAPI) {
 		// DMs or groups. Messages Ben writes from his phone to an ALLOWED group
 		// remain a legitimate assistant prompt (shared account).
 		if (isFromMe && !isOperator) {
-			// appendEntry: displayed in the TUI immediately, never triggers a turn.
-			pi.appendEntry("whatsapp-echo", { content: `${messageHeader} ${text}` });
+			// Echo entry ONLY for display-only messages. Ben's own messages to
+			// an allowed group fall through to sendUserMessage below (real
+			// assistant prompt) — adding an echo entry there displayed the
+			// message twice in the transcript.
 			if (!isGroup || sentByExtension) {
+				pi.appendEntry("whatsapp-echo", {
+					content: `${messageHeader} ${text}`,
+				});
 				return;
 			}
 		}

@@ -295,6 +295,25 @@ describe('whatsapp-pi — message callback & session events', () => {
         expect(lastSentText()).toContain('in group My py group (group):');
     });
 
+    it('does NOT double-display own group messages (echo only when display-only)', async () => {
+        await messageCallback!({
+            messages: [{
+                key: {
+                    remoteJid: '120363409409770410@g.us',
+                    participant: '33684136128:0@s.whatsapp.net',
+                    fromMe: true,
+                    id: 'M5'
+                },
+                message: { conversation: 'message unique' },
+                pushName: 'Ben'
+            }]
+        });
+
+        // The prompt path shows it once; the echo entry must not duplicate it.
+        expect(pi.appendEntry).not.toHaveBeenCalled();
+        expect(pi.sendUserMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('triggers an assistant turn for own messages sent to an allowed group', async () => {
         await messageCallback!({
             messages: [{
@@ -309,10 +328,15 @@ describe('whatsapp-pi — message callback & session events', () => {
             }]
         });
 
-        const sent = lastEchoText();
-        expect(sent).toContain('Ben [you, from your phone] sent to 120363409409770410@g.us (group):');
-        // The same message must ALSO be injected as a user prompt so the
-        // assistant replies in the group.
+        // Shown ONCE, as the user prompt itself (no separate echo entry —
+        // that used to display the message twice in the transcript).
+        expect(pi.appendEntry).not.toHaveBeenCalled();
+        expect(pi.sendUserMessage).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Ben [you, from your phone] sent to 120363409409770410@g.us (group):'
+            ),
+            { deliverAs: 'followUp' }
+        );
         expect(pi.sendUserMessage).toHaveBeenCalledWith(
             expect.stringContaining('que réponds-tu ?'),
             { deliverAs: 'followUp' }
